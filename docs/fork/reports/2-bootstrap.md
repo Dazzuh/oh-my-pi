@@ -47,3 +47,14 @@ would silently drop any fork Rust change.
 Version: the build checkout's `packages/utils/package.json` version (the source of `VERSION`) becomes
 `18.19.0+dz.<n>`. Build metadata, not a prerelease suffix: `compareVersions` (`packages/utils/src/version.ts`)
 strips `+…`, so update and compat checks see 18.19.0; a `-dz.1` prerelease would sort below 18.19.0.
+
+## 17:01 PR #1 CI, attempt 1
+
+- PR https://github.com/Dazzuh/oh-my-pi/pull/1, CI run 43263398098 on GitHub-hosted `ubuntu-22.04`: every job
+  green except `Test coding-agent native/unit (TS) 1/3`, with two timeouts in upstream tests the PR doesn't touch:
+  `cli-responses-websocket-recovery.test.ts` ("Missing expected real CLI event", chunk took 213.8 s) and
+  `browser-relay-tab-isolation.test.ts` ("Selected tab did not become available", 134.4 s). Release/publish jobs
+  all `skipped`. Re-ran the failed job.
+- Local dry run of the release build step on this machine (npm addon standing in for the Cargo one,
+  `RELEASE_TARGETS=win32-x64 bun run ci:release:build-binaries`, utils version set to `18.19.0+dz.0`): exit 0 in
+  70 s; the binary printed `omp/18.19.0+dz.0` and `smoke-test: ok`.
