@@ -21,17 +21,20 @@ describe("prompt overrides", () => {
 	let modelRegistry!: ModelRegistry;
 	let authDir!: string;
 
-	const makeAgentDir = (files: Record<string, string>): string => {
+	/** A temp dir whose `<base>/prompt-overrides/` holds `files`. */
+	const makeOverridesDir = (files: Record<string, string>, base = ""): string => {
 		const dir = path.join(os.tmpdir(), `pi-prompt-overrides-${Snowflake.next()}`);
 		tempDirs.push(dir);
 		for (const [file, content] of Object.entries(files)) {
-			const target = path.join(dir, PROMPT_OVERRIDES_DIR, file);
+			const target = path.join(dir, base, PROMPT_OVERRIDES_DIR, file);
 			fs.mkdirSync(path.dirname(target), { recursive: true });
 			fs.writeFileSync(target, content);
 		}
 		fs.mkdirSync(dir, { recursive: true });
 		return dir;
 	};
+	const makeAgentDir = (files: Record<string, string>): string => makeOverridesDir(files);
+	const makeProject = (files: Record<string, string>): string => makeOverridesDir(files, ".omp");
 
 	const sessionOptions = (dir: string): CreateAgentSessionOptions => ({
 		cwd: dir,
@@ -60,7 +63,8 @@ describe("prompt overrides", () => {
 
 	afterEach(async () => {
 		// An agent dir without overrides restores the bundled prompts for later tests.
-		await loadPromptOverrides(makeAgentDir({}));
+		const empty = makeAgentDir({});
+		await loadPromptOverrides({ agentDir: empty, cwd: empty });
 	});
 
 	afterAll(() => {
@@ -95,8 +99,8 @@ describe("prompt overrides", () => {
 			// `find`'s description is used without template rendering.
 			"tools/find.md": "Find override.",
 		});
-		const result = await loadPromptOverrides(dir);
-		expect(result.applied).toEqual(["tools/find.md"]);
+		const result = await loadPromptOverrides({ agentDir: dir, cwd: dir });
+		expect(result.applied).toEqual([{ path: "tools/find.md", level: "user" }]);
 		expect(result.skipped.map(entry => entry.path).sort()).toEqual([
 			"tools/bash.md",
 			"tools/no-such-tool.md",
@@ -105,6 +109,29 @@ describe("prompt overrides", () => {
 		const bundledBash = BUNDLED_PROMPTS.get("tools/bash.md")!;
 		expect(prompt.overridden(bundledBash)).toBe(bundledBash);
 		expect(new FindTool({} as ToolSession).description).toBe("Find override.");
+	});
+
+	it("prefers a project override over a user override over the bundled prompt, file by file", async () => {
+		const agentDir = makeAgentDir({ "tools/read.md": "User read.", "tools/grep.md": "User grep." });
+		const project = makeProject({ "tools/read.md": "Project read.", "tools/find.md": "{{#if broken}}never closed" });
+		const nested = path.join(project, "packages", "inner");
+		fs.mkdirSync(nested, { recursive: true });
+		const result = await loadPromptOverrides({ agentDir, cwd: nested });
+		expect(result.applied).toEqual([
+			{ path: "tools/grep.md", level: "user" },
+			{ path: "tools/read.md", level: "project" },
+		]);
+		expect(prompt.overridden(BUNDLED_PROMPTS.get("tools/read.md")!)).toBe("Project read.");
+		expect(prompt.overridden(BUNDLED_PROMPTS.get("tools/grep.md")!)).toBe("User grep.");
+		// An invalid project file leaves the bundled text, as an invalid user file does.
+		const bundledFind = BUNDLED_PROMPTS.get("tools/find.md")!;
+		expect(prompt.overridden(bundledFind)).toBe(bundledFind);
+
+		// Another project without overrides gets the user layer only.
+		const other = makeProject({});
+		fs.mkdirSync(path.join(other, ".omp", "agents"), { recursive: true });
+		await loadPromptOverrides({ agentDir, cwd: other });
+		expect(prompt.overridden(BUNDLED_PROMPTS.get("tools/read.md")!)).toBe("User read.");
 	});
 
 	it("can override every bundled prompt file", () => {

@@ -1,85 +1,112 @@
 /**
- * User overrides for bundled prompt files.
+ * User and project overrides for bundled prompt files.
  *
- * A file at `<agentDir>/prompt-overrides/<path>.md` replaces the bundled prompt
+ * A file at `<dir>/prompt-overrides/<path>.md` replaces the bundled prompt
  * `src/prompts/<path>.md` (for example `system/project-prompt.md` or
- * `tools/bash.md`). Overrides are Handlebars source rendered with the same data
- * as the file they replace, and are read once per process, so every request of
- * a session carries the same bytes and the provider prompt cache keeps hitting.
- * Without the directory nothing changes.
+ * `tools/bash.md`), where `<dir>` is the agent dir (user layer) or the
+ * project's nearest `.omp/` (project layer). Per file, project beats user beats
+ * bundled. Overrides are Handlebars source rendered with the same data as the
+ * file they replace, and are read once per top-level session, so every request
+ * carries the same bytes and the provider prompt cache keeps hitting. Without
+ * either directory nothing changes.
  */
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import { isEnoent, logger, prompt } from "@oh-my-pi/pi-utils";
 import { Glob } from "bun";
+import { findRepoRoot } from "../capability/fs";
+import { findNearestProjectConfigDir } from "../discovery/builtin";
 import { BUNDLED_PROMPTS } from "./bundled-prompts.generated";
 
-/** Directory under the agent dir that holds prompt overrides. */
+/** Directory under the agent dir or a project's `.omp/` that holds prompt overrides. */
 export const PROMPT_OVERRIDES_DIR = "prompt-overrides";
 
+export type PromptOverrideLevel = "user" | "project";
+
 export interface PromptOverridesResult {
-	/** Override files applied, as paths under `src/prompts/`. */
-	readonly applied: readonly string[];
+	/** Override files in use, as paths under `src/prompts/`, with the layer that supplied each. */
+	readonly applied: readonly { readonly path: string; readonly level: PromptOverrideLevel }[];
 	/** Override files ignored, with the reason (also logged as warnings). */
-	readonly skipped: readonly { readonly path: string; readonly reason: string }[];
+	readonly skipped: readonly { readonly path: string; readonly level: PromptOverrideLevel; readonly reason: string }[];
 }
 
-let loaded: { agentDir: string; result: Promise<PromptOverridesResult> } | undefined;
+let loaded: { key: string; result: Promise<PromptOverridesResult> } | undefined;
 
 /**
- * Read `<agentDir>/prompt-overrides/` and register its files as replacements
- * for the bundled prompts they name. Runs once per agent dir per process; a
- * call with another agent dir replaces the registered set. A file that names
- * no bundled prompt, is empty, or does not parse as a template is skipped with
- * a warning, and the bundled prompt stays in use.
+ * Read the user (`<agentDir>/prompt-overrides/`) and project
+ * (`<nearest .omp>/prompt-overrides/` above `cwd`) layers and register their
+ * files as replacements for the bundled prompts they name; a project file wins
+ * over a user file with the same path. Runs once per agent dir and project per
+ * process; a call for another pair replaces the registered set. A file that
+ * names no bundled prompt, is empty, or does not parse as a template is skipped
+ * with a warning, and the next layer (or the bundled prompt) stays in use.
  */
-export function loadPromptOverrides(agentDir: string): Promise<PromptOverridesResult> {
-	if (loaded?.agentDir === agentDir) return loaded.result;
-	const result = readPromptOverrides(path.join(agentDir, PROMPT_OVERRIDES_DIR)).then(({ overrides, ...summary }) => {
+export async function loadPromptOverrides(options: { agentDir: string; cwd: string }): Promise<PromptOverridesResult> {
+	const cwd = path.resolve(options.cwd);
+	const projectConfig = await findNearestProjectConfigDir({
+		cwd,
+		home: os.homedir(),
+		repoRoot: await findRepoRoot(cwd),
+		agentDir: options.agentDir,
+	});
+	const layers: { dir: string; level: PromptOverrideLevel }[] = [
+		{ dir: path.join(options.agentDir, PROMPT_OVERRIDES_DIR), level: "user" },
+	];
+	if (projectConfig) layers.push({ dir: path.join(projectConfig.dir, PROMPT_OVERRIDES_DIR), level: "project" });
+	const key = layers.map(layer => layer.dir).join("\0");
+	if (loaded?.key === key) return loaded.result;
+	const result = readLayers(layers).then(({ overrides, ...summary }) => {
 		prompt.setTemplateOverrides(overrides);
 		if (summary.applied.length > 0) logger.debug("Prompt overrides applied", { files: summary.applied });
 		return summary;
 	});
-	loaded = { agentDir, result };
+	loaded = { key, result };
 	return result;
 }
 
-async function readPromptOverrides(
-	dir: string,
+/** Later layers override earlier ones, file by file. */
+async function readLayers(
+	layers: readonly { dir: string; level: PromptOverrideLevel }[],
 ): Promise<PromptOverridesResult & { overrides: ReadonlyMap<string, string> }> {
-	let files: string[];
-	try {
-		files = await Array.fromAsync(new Glob("**/*.md").scan({ cwd: dir, onlyFiles: true }));
-	} catch (error) {
-		if (isEnoent(error)) return { overrides: new Map(), applied: [], skipped: [] };
-		throw error;
+	const winners = new Map<string, { content: string; level: PromptOverrideLevel }>();
+	const skipped: { path: string; level: PromptOverrideLevel; reason: string }[] = [];
+	for (const { dir, level } of layers) {
+		let files: string[];
+		try {
+			files = await Array.fromAsync(new Glob("**/*.md").scan({ cwd: dir, onlyFiles: true }));
+		} catch (error) {
+			if (isEnoent(error)) continue;
+			throw error;
+		}
+		for (const file of files.map(file => file.split(path.sep).join("/")).sort()) {
+			const reason = await validate(file, path.join(dir, file));
+			if (typeof reason === "string") {
+				skipped.push({ path: file, level, reason });
+				logger.warn("Ignoring prompt override", { path: path.join(dir, file), level, reason });
+				continue;
+			}
+			winners.set(file, { content: reason.content, level });
+		}
 	}
 	const overrides = new Map<string, string>();
-	const applied: string[] = [];
-	const skipped: { path: string; reason: string }[] = [];
-	for (const file of files.map(file => file.split(path.sep).join("/")).sort()) {
-		const skip = (reason: string): void => {
-			skipped.push({ path: file, reason });
-			logger.warn("Ignoring prompt override; using the bundled prompt", { path: path.join(dir, file), reason });
-		};
-		const bundled = BUNDLED_PROMPTS.get(file);
-		if (bundled === undefined) {
-			skip("no bundled prompt has this path");
-			continue;
-		}
-		const content = await fs.readFile(path.join(dir, file), "utf8");
-		if (!content.trim()) {
-			skip("file is empty");
-			continue;
-		}
-		try {
-			prompt.compile(content);
-		} catch (error) {
-			skip(`invalid template: ${error instanceof Error ? error.message : String(error)}`);
-			continue;
-		}
-		overrides.set(bundled, content);
-		applied.push(file);
+	const applied: { path: string; level: PromptOverrideLevel }[] = [];
+	for (const [file, { content, level }] of [...winners].sort(([a], [b]) => a.localeCompare(b))) {
+		overrides.set(BUNDLED_PROMPTS.get(file)!, content);
+		applied.push({ path: file, level });
 	}
 	return { overrides, applied, skipped };
+}
+
+/** The file's content when it can replace a bundled prompt, else why not. */
+async function validate(file: string, filePath: string): Promise<{ content: string } | string> {
+	if (!BUNDLED_PROMPTS.has(file)) return "no bundled prompt has this path";
+	const content = await fs.readFile(filePath, "utf8");
+	if (!content.trim()) return "file is empty";
+	try {
+		prompt.compile(content);
+	} catch (error) {
+		return `invalid template: ${error instanceof Error ? error.message : String(error)}`;
+	}
+	return { content };
 }
