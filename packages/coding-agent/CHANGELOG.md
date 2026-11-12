@@ -109,6 +109,7 @@
 ### Added
 
 - Added prompt overrides: a file at `~/.omp/agent/prompt-overrides/<path>.md` replaces the bundled prompt `src/prompts/<path>.md`, such as the `<project-context>` footer or a tool description, read once per process so the prompt cache stays stable
+- Added project prompt overrides: `<project>/.omp/prompt-overrides/<path>.md` replaces a bundled prompt for sessions in that project, over the user-level file; task subagents use the same overrides
 - Added an optional `cwd` on task spawns (`task.cwd` setting, off by default) to run a subagent in another directory or git repository, including with `isolated`.
 - Add a declarative YAML workload runner for ordered tasks and templated inputs. ([#12226](https://github.com/can1357/oh-my-pi/pull/12226) by [@Xytronix](https://github.com/Xytronix)).
 
