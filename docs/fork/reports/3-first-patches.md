@@ -131,3 +131,8 @@ pac1 WIP pushed as `fix/websocket-recovery-test` (see its commit and `omp-wt/pac
 - pac1: one subagent (`Pac1Linux`) reproducing on Linux in WSL Ubuntu under 4-CPU contention. Windows facts so far:
   under 14× CPU load, CLI startup up to 22 s but prompt→first delta 268 ms, so the CI wait (first prompt's first text
   delta, 25 s) is something Linux/CI-specific.
+- PR #7 review (`opencode-go/gpt-6-luna`): 2 P2 + 2 P3. Fixed in `4bb3962522`: agent discovery used the session cwd
+  (e2e: agent `bonly` defined only in repo B's `.omp/agents`, called with `cwd` = B from A → appended `bonly ok` to B's
+  notes.txt); approval details printed `cwd` while `task.cwd` was off; the prompt now says `cwd` is not for `seance`
+  (preflight already refuses it); test uses `import * as path`. Not changed: the test's `Bun.spawn(["git", …])` repo
+  setup, which 6 existing tests use the same way.
