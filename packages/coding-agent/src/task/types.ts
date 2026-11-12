@@ -178,6 +178,7 @@ function createTaskSchema(options: {
 	structured: boolean;
 	steps: boolean;
 	perCallModel: boolean;
+	cwd: boolean;
 	seanceFields: SeanceTaskSchemaFields;
 }): BaseType {
 	const agent = taskAgentSchemaRule(options.defaultAgent);
@@ -187,11 +188,17 @@ function createTaskSchema(options: {
 		? { "outputSchema?": outputSchemaInputSchema, "schemaMode?": '"permissive" | "strict"' }
 		: {};
 	const toolsField = options.evalToolsEnabled ? { "tools?": "string[]" } : {};
+	// `cwd` is declared only while `task.cwd` allows it; the wire schema deletes an undeclared key.
+	const cwdField = options.cwd ? { "cwd?": "string" } : {};
 	// `model` is declared only when the caller may send it: a per-call selector
 	// while `task.perCallModel` allows task calls, or seance's selector list. An
 	// undeclared `model` still reaches preflight (root keys survive lenient
 	// validation; batch items keep it via keepGatedItemKeys) and is refused there.
-	const gatedFields = { ...(options.perCallModel ? { "model?": "string" } : {}), ...options.seanceFields };
+	const gatedFields = {
+		...(options.perCallModel ? { "model?": "string" } : {}),
+		...options.seanceFields,
+		...cwdField,
+	};
 	if (options.batchEnabled) {
 		if (options.isolationEnabled) {
 			const item = type.raw({
@@ -274,6 +281,8 @@ export function getTaskSchema(options: {
 	defaultAgent?: string;
 	/** Advertise the per-call `model` field (`task.perCallModel` allows task calls); default off. */
 	perCallModel?: boolean;
+	/** Advertise the per-call `cwd` field (`task.cwd`); default off. */
+	cwd?: boolean;
 	/** Advertise historical source/model fields for the bundled seance agent. */
 	seanceFields?: SeanceTaskSchemaFields;
 }): TaskToolSchemaInstance {
@@ -283,6 +292,7 @@ export function getTaskSchema(options: {
 	const structured = options.structured ?? true;
 	const steps = options.steps ?? false;
 	const perCallModel = options.perCallModel ?? false;
+	const cwd = options.cwd ?? false;
 	const seanceFields = options.seanceFields ?? {};
 	if (
 		defaultAgent === "task" &&
@@ -291,12 +301,13 @@ export function getTaskSchema(options: {
 		structured &&
 		!steps &&
 		!perCallModel &&
+		!cwd &&
 		!options.seanceFields
 	) {
 		if (options.batchEnabled) return options.isolationEnabled ? taskSchemaBatch : taskSchemaBatchNoIsolation;
 		return options.isolationEnabled ? taskSchema : taskSchemaNoIsolation;
 	}
-	const key = `${options.isolationEnabled ? "iso" : "flat"}:${options.batchEnabled ? "batch" : "single"}:${effortEnabled ? "effort" : "default"}:${evalToolsEnabled ? "tools" : "notools"}:${structured ? "structured" : "prose"}:${steps ? "steps" : "task"}:${perCallModel ? "model" : "nomodel"}:${options.seanceFields ? "seance" : "plain"}:${defaultAgent}`;
+	const key = `${options.isolationEnabled ? "iso" : "flat"}:${options.batchEnabled ? "batch" : "single"}:${effortEnabled ? "effort" : "default"}:${evalToolsEnabled ? "tools" : "notools"}:${structured ? "structured" : "prose"}:${steps ? "steps" : "task"}:${perCallModel ? "model" : "nomodel"}:${cwd ? "cwd" : "nocwd"}:${options.seanceFields ? "seance" : "plain"}:${defaultAgent}`;
 	const cached = taskSchemaCache.get(key);
 	if (cached) return cached;
 	const schema = createTaskSchema({
@@ -307,6 +318,7 @@ export function getTaskSchema(options: {
 		structured,
 		defaultAgent,
 		perCallModel,
+		cwd,
 		seanceFields,
 	});
 	taskSchemaCache.set(key, schema);

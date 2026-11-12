@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { type } from "@oh-my-pi/omptype";
 import type { AgentTool, AgentToolResult } from "@oh-my-pi/pi-agent-core";
+import { prompt } from "@oh-my-pi/pi-utils";
 import {
 	deleteManagedSkill,
 	getManagedSkillsDir,
@@ -41,7 +42,7 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 	readonly name = "manage_skill";
 	readonly approval = "write" as const;
 	readonly label = "Manage Skill";
-	readonly description = manageSkillDescription;
+	readonly description = prompt.overridden(manageSkillDescription);
 	readonly parameters = manageSkillSchema;
 	readonly strict = true;
 	readonly loadMode = "essential" as const;
