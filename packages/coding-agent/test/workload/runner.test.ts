@@ -326,4 +326,42 @@ steps:
 		expect(spawns()).toBe(2);
 		expect(result.steps.find(step => step.id === "gate")?.status).toBe("skipped");
 	});
+
+	it("decodes a schema-less prompt step's JSON-quoted yield to plain text for later steps", async () => {
+		// The subagent executor serializes a string yield as a JSON string
+		// literal (`"packages/a.ts"`); the runner must hand later steps the text.
+		await stubSpawnEnvironment(
+			() =>
+				({
+					result: {
+						index: 0,
+						id: "ask",
+						agent: "task",
+						agentSource: "bundled",
+						task: "name a file",
+						exitCode: 0,
+						output: JSON.stringify("packages/a.ts"),
+						stderr: "",
+						truncated: false,
+						durationMs: 1,
+					},
+					policy: {},
+					mergeSummary: "",
+					changesApplied: null,
+					artifactsDir: os.tmpdir(),
+					temporaryArtifacts: true,
+				}) as unknown as StructuredSubagentResult,
+		);
+		const result = await run(`
+name: plain
+steps:
+  - id: ask
+    prompt: "name a file"
+  - id: check
+    needs: [ask]
+    run: ["bun", "-e", "process.exit(process.argv.at(-1) === 'packages/a.ts' ? 0 : 3)", "\${steps.ask.output}"]
+`);
+		expect(result.status).toBe("ok");
+		expect(result.steps.find(step => step.id === "check")?.error).toBeUndefined();
+	});
 });
