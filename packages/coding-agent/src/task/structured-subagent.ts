@@ -128,6 +128,8 @@ export interface StructuredSubagentIdentity {
 /** One normalized child invocation. */
 export interface StructuredSubagentRequest {
 	session: ToolSession;
+	/** Directory the spawn runs in: absolute, or relative to the session's directory. Unset: the session's directory. */
+	cwd?: string;
 	invocationKind: "task" | "eval";
 	assignment: string;
 	context?: string;
@@ -211,6 +213,8 @@ export interface StructuredSubagentRequest {
 /** A normalized preflight result, reusable by tests and adapters. */
 export interface EffectiveSubagentPolicy {
 	discovery: DiscoveryResult;
+	/** Directory the spawn runs in, existing and absolute; differs from the session's directory only for a relocated spawn. */
+	cwd: string;
 	agentName: string;
 	agent: AgentDefinition;
 	effectiveAgent: AgentDefinition;
@@ -341,6 +345,32 @@ function assertPlanControlsAllowed(request: StructuredSubagentRequest, planMode:
 			"Subagent isolation, apply, and merge controls are unavailable in plan mode.",
 		);
 	}
+}
+
+/**
+ * The directory a spawn runs in: the session's directory, or the call's `cwd` resolved against it
+ * (a relative `cwd` resolves against the session's current directory, like `cd`).
+ */
+async function resolveSpawnCwd(request: StructuredSubagentRequest): Promise<string> {
+	const sessionCwd = path.resolve(request.session.cwd);
+	if (request.cwd === undefined) return sessionCwd;
+	const resolved = path.resolve(sessionCwd, request.cwd);
+	const isDirectory = await fs.stat(resolved).then(
+		stat => stat.isDirectory(),
+		() => false,
+	);
+	if (!isDirectory) {
+		throw new StructuredSubagentError(
+			"preflight",
+			`Task cwd ${JSON.stringify(request.cwd)} is not an existing directory (resolved to ${resolved}).`,
+		);
+	}
+	return resolved;
+}
+
+/** A spawn is relocated when it runs in a directory other than the session's. */
+function isRelocated(policy: EffectiveSubagentPolicy, session: ToolSession): boolean {
+	return policy.cwd !== path.resolve(session.cwd);
 }
 
 function assertDepthAndSpawnAllowed(request: StructuredSubagentRequest, agentName: string): void {
@@ -527,8 +557,10 @@ export async function resolveEffectiveSubagentPolicy(
 	const planMode = request.session.getPlanModeState?.()?.enabled === true;
 	if (agentName !== SEANCE_AGENT_NAME) assertPlanControlsAllowed(request, planMode);
 	assertDepthAndSpawnAllowed(request, agentName);
+	const spawnCwd = await resolveSpawnCwd(request);
 
-	const discovery = await discoverAgentsShared(request.session.cwd, request.session.effectiveExtensionRoots?.());
+	// A relocated spawn also finds the agents its directory defines (`.omp/agents`).
+	const discovery = await discoverAgentsShared(spawnCwd, request.session.effectiveExtensionRoots?.());
 	const sessionAgents = request.session.getSessionAgents?.() ?? [];
 	const agents = [...discovery.agents, ...sessionAgents];
 	const agent = getAgent(agents, agentName);
@@ -551,6 +583,9 @@ export async function resolveEffectiveSubagentPolicy(
 		);
 	}
 	if (agentName === SEANCE_AGENT_NAME && !isBundledSeance(agent)) assertPlanControlsAllowed(request, planMode);
+	if (request.cwd !== undefined && isBundledSeance(agent)) {
+		throw new StructuredSubagentError("preflight", "`cwd` is not supported for the `seance` agent.");
+	}
 	let preparedSeance: { modelPatterns: string[]; session: PreparedSeanceSession } | undefined;
 	if (isBundledSeance(agent)) {
 		try {
@@ -650,6 +685,7 @@ export async function resolveEffectiveSubagentPolicy(
 	}
 	return {
 		discovery,
+		cwd: spawnCwd,
 		agentName,
 		agent,
 		effectiveAgent,
@@ -788,10 +824,14 @@ function buildExecutorOptions(
 	const { skills, autoloadSkills } = resolveAutoloadSkills(session, policy.agent);
 	const localProtocolOptions = sessionLocalProtocolOptions(session);
 	const restrictToolNames = preparedSession !== undefined || policy.planMode || session.restrictToolNames === true;
+	const relocated = isRelocated(policy, session);
+	// A relocated child discovers project context, rules and skills from its own directory. Extensions and
+	// tools are loaded fresh there too, unless the child is restricted, which keeps the parent's hooks.
+	const ownExtensions = relocated && !restrictToolNames;
 	const enableMCP = !restrictToolNames && (session.enableMCP ?? true);
 	const steps = request.steps?.length ? renderStepPrompts(request.steps, policy.structured) : undefined;
 	return {
-		cwd: session.cwd,
+		cwd: relocated ? policy.cwd : session.cwd,
 		costGate: session.costGate,
 		additionalDirectories: session.additionalDirectories,
 		getApiKey: session.getApiKey,
@@ -857,14 +897,14 @@ function buildExecutorOptions(
 		enableMCP,
 		customTools: request.customTools,
 		workPoolYieldItems: request.workPoolYieldItems,
-		contextFiles: session.contextFiles,
+		contextFiles: relocated ? undefined : session.contextFiles,
 		noContextFiles: session.noContextFiles,
-		skills,
+		skills: relocated ? undefined : skills,
 		// Autoload runs after session start, outside the seance isolation options.
-		autoloadSkills: preparedSession ? undefined : autoloadSkills,
-		workspaceTree: session.workspaceTree,
-		promptTemplates: session.promptTemplates,
-		rules: session.rules,
+		autoloadSkills: preparedSession || relocated ? undefined : autoloadSkills,
+		workspaceTree: relocated ? undefined : session.workspaceTree,
+		promptTemplates: relocated ? undefined : session.promptTemplates,
+		rules: relocated ? undefined : session.rules,
 		// Root policy and module paths have separate jobs: the live policy drives
 		// recursive sub-discovery; preloaded paths only avoid re-scanning/reusing
 		// parent-bound extension instances while constructing the child.
@@ -872,9 +912,9 @@ function buildExecutorOptions(
 		// capture outlives its parking, so a bound copy would keep this parent's
 		// whole session graph alive for as long as the child can be revived.
 		extensionRoots: session.effectiveExtensionRoots,
-		preloadedExtensionPaths: restrictToolNames ? [] : session.extensionPaths,
-		preloadedPreparedExtensions: session.preparedExtensions,
-		preloadedCustomToolPaths: restrictToolNames ? [] : session.customToolPaths,
+		preloadedExtensionPaths: restrictToolNames ? [] : ownExtensions ? undefined : session.extensionPaths,
+		preloadedPreparedExtensions: ownExtensions ? undefined : session.preparedExtensions,
+		preloadedCustomToolPaths: restrictToolNames ? [] : ownExtensions ? undefined : session.customToolPaths,
 		localProtocolOptions,
 		parentArtifactManager: preparedSession ? undefined : (session.getArtifactManager?.() ?? undefined),
 		parentHindsightSessionState: session.getHindsightSessionState?.(),
@@ -1064,6 +1104,9 @@ export async function runStructuredSubagent(request: StructuredSubagentRequest):
 		});
 		if (policy.preparedSession === undefined) await refreshSkillsForAutoload(request.session, policy.agent);
 		const baseOptions = buildExecutorOptions(request, policy, lease, id);
+		if (isRelocated(policy, request.session)) {
+			baseOptions.settings = await request.session.settings.cloneForCwd(policy.cwd);
+		}
 		baseOptions.onCleanupDeferred = completion => {
 			deferredCleanup = completion;
 		};
@@ -1071,7 +1114,7 @@ export async function runStructuredSubagent(request: StructuredSubagentRequest):
 		let isolationContext: IsolationContext | null = null;
 		if (policy.isIsolated) {
 			try {
-				isolationContext = await prepareIsolationContext(request.session.cwd);
+				isolationContext = await prepareIsolationContext(policy.cwd, isRelocated(policy, request.session));
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				throw new StructuredSubagentError(
