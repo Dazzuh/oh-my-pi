@@ -136,3 +136,17 @@ pac1 WIP pushed as `fix/websocket-recovery-test` (see its commit and `omp-wt/pac
   notes.txt); approval details printed `cwd` while `task.cwd` was off; the prompt now says `cwd` is not for `seance`
   (preflight already refuses it); test uses `import * as path`. Not changed: the test's `Bun.spawn(["git", …])` repo
   setup, which 6 existing tests use the same way.
+
+## 21:30 merges and pac1 evidence
+
+- PR #5 merged (`5d9f8b4c82`, squash; CI green after one rerun of an ovnfs EPIPE flake).
+- PR #7 merged (`cdcea9da10`, squash) after the gpt-6-luna review fixes; CI green (run on head `1ce02750fc`).
+- PR #6 rebased twice onto the new `main`; each rebase brought upstream lines back into `CHANGELOG.md` through
+  Xytronix's docs commit; repaired in the fork's "keep only the workload entry" commit. Its CI failures since:
+  pac1 (once), `browser-webmcp.test.ts` (once), `browser-tab-worker-startup.test.ts` (twice). The browser tests have
+  failed only on PR #6; reruns pending, and if they fail again, investigate before merging.
+- pac1: `Pac1Linux` (WSL Ubuntu, `taskset -c 0-3`, CI env) did not reproduce: full native bucket 111/112 (the one fail
+  is `memory-tools.test.ts`); this file 13/13 with 1/4/8/16 concurrent copies, max CLI start 19.7 s, max prompt→first
+  delta 2.2 s. The PR #6 CI failure (run 43287268895) showed `RUN_BASH` resolving with no `tool_execution_end`
+  although bash ran (effect file `x`): events landed on another turn, consistent with extra requests reaching the
+  fixture (the Windows mechanism). Draft PR #8 (`--no-skills` fix): first CI run green; full reruns started for 3 in a row.
