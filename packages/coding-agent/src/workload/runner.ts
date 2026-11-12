@@ -190,6 +190,21 @@ async function runShellStep(
 	};
 }
 
+/**
+ * Text of a prompt step without `output_schema`. The subagent executor
+ * serializes a string yield as a JSON string literal, so decode that back to
+ * the plain text; any other output passes through untouched.
+ */
+function plainYieldedText(step: WorkloadStep, output: string): string {
+	if (step.outputSchema !== undefined || !output.startsWith('"')) return output;
+	try {
+		const decoded: unknown = JSON.parse(output);
+		return typeof decoded === "string" ? decoded : output;
+	} catch {
+		return output;
+	}
+}
+
 /** Spawn one subagent for a step (or for one `for_each` item). */
 async function runAgentStep(
 	step: WorkloadStep,
@@ -224,7 +239,7 @@ async function runAgentStep(
 		const ok = result.exitCode === 0 && !result.error && !result.aborted;
 		return {
 			ok,
-			output: structured?.data !== undefined ? structured.data : result.output,
+			output: structured?.data !== undefined ? structured.data : plainYieldedText(step, result.output),
 			durationMs,
 			...(result.resolvedModel !== undefined ? { resolvedModel: result.resolvedModel } : {}),
 			...(result.tokens !== undefined ? { tokens: result.tokens } : {}),
