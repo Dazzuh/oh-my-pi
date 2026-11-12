@@ -559,7 +559,8 @@ export async function resolveEffectiveSubagentPolicy(
 	assertDepthAndSpawnAllowed(request, agentName);
 	const spawnCwd = await resolveSpawnCwd(request);
 
-	const discovery = await discoverAgentsShared(request.session.cwd, request.session.effectiveExtensionRoots?.());
+	// A relocated spawn also finds the agents its directory defines (`.omp/agents`).
+	const discovery = await discoverAgentsShared(spawnCwd, request.session.effectiveExtensionRoots?.());
 	const sessionAgents = request.session.getSessionAgents?.() ?? [];
 	const agents = [...discovery.agents, ...sessionAgents];
 	const agent = getAgent(agents, agentName);

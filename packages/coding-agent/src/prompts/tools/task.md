@@ -78,7 +78,7 @@ Run one agent synchronously.
   - Every request requires an approved model; retry fallback, context promotion and prewalk are off.
 {{/if}}
 {{#if cwdEnabled}}
-- `cwd`: directory this spawn runs in, absolute or relative to your cwd; must exist. Its tools, project context and `.omp/` config come from there{{#if isolationEnabled}}; `isolated` uses that directory's git repo{{/if}}. Omit unless needed.
+- `cwd`: directory this spawn runs in, absolute or relative to your cwd; must exist. Its tools, project context, agents and `.omp/` config come from there{{#if isolationEnabled}}; `isolated` uses that directory's git repo{{/if}}. Not for `seance`. Omit unless needed.
 {{/if}}
 {{#if structured}}
 - `schemaMode`: default permissive warns after retries; strict fails.

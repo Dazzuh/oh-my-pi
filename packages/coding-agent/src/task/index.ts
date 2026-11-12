@@ -734,7 +734,8 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		if (typeof params.model === "string") {
 			lines.push(`Model: ${truncateForPrompt(params.model)}`);
 		}
-		if (typeof params.cwd === "string") {
+		const cwdEnabled = cfgTaskCwd.get(this.session.settings);
+		if (cwdEnabled && typeof params.cwd === "string") {
 			lines.push(`Cwd: ${truncateForPrompt(params.cwd)}`);
 		}
 		if (typeof params.task === "string") {
@@ -777,7 +778,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				if (isRecord(item) && typeof item.model === "string") {
 					lines.push(`Task ${index + 1} model: ${truncateForPrompt(item.model)}`);
 				}
-				if (isRecord(item) && typeof item.cwd === "string") {
+				if (cwdEnabled && isRecord(item) && typeof item.cwd === "string") {
 					lines.push(`Task ${index + 1} cwd: ${truncateForPrompt(item.cwd)}`);
 				}
 			}
