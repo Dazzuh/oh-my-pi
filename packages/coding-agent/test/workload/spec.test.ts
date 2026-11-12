@@ -226,14 +226,21 @@ describe("workload discovery", () => {
 			`name: shared\nsteps:\n  - id: inner\n    prompt: inner\n`,
 		);
 
-		const found = await discoverWorkloads(nested, path.join(root, "no-user-dir"));
-		const names = found.map(candidate => candidate.name).sort();
-		expect(names).toEqual(["outer-only", "shared"]);
-		const shared = found.find(candidate => candidate.name === "shared");
-		expect(shared?.path.startsWith(nested)).toBe(true);
+		// Outside a repository the walk stops at home; make `root` home so the walk from `nested` reaches it
+		// whatever the OS temp dir is (on Linux it is outside the real home).
+		const homedir = spyOn(os, "homedir").mockReturnValue(root);
+		try {
+			const found = await discoverWorkloads(nested, path.join(root, "no-user-dir"));
+			const names = found.map(candidate => candidate.name).sort();
+			expect(names).toEqual(["outer-only", "shared"]);
+			const shared = found.find(candidate => candidate.name === "shared");
+			expect(shared?.path.startsWith(nested)).toBe(true);
 
-		const loaded = await loadWorkload("shared", nested, path.join(root, "no-user-dir"));
-		expect(loaded.steps[0]?.id).toBe("inner");
+			const loaded = await loadWorkload("shared", nested, path.join(root, "no-user-dir"));
+			expect(loaded.steps[0]?.id).toBe("inner");
+		} finally {
+			homedir.mockRestore();
+		}
 	});
 
 	it("does not climb above cwd when cwd is outside both home and a repository", async () => {
