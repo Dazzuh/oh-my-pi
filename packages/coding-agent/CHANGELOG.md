@@ -109,6 +109,7 @@
 ### Added
 
 - Added prompt overrides: a file at `~/.omp/agent/prompt-overrides/<path>.md` replaces the bundled prompt `src/prompts/<path>.md`, such as the `<project-context>` footer or a tool description, read once per process so the prompt cache stays stable
+- Added an optional `cwd` on task spawns (`task.cwd` setting, off by default) to run a subagent in another directory or git repository, including with `isolated`.
 
 ## [18.19.0] - 2026-11-12
 

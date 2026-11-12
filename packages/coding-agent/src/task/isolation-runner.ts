@@ -134,6 +134,8 @@ async function rescueTaskBranch(repoRoot: string, branchName: string, baseSha: s
 /** Resolved repo shared by every isolated spawn in a single call. */
 export interface IsolationContext {
 	repoRoot: string;
+	/** Directory of the spawn's cwd relative to `repoRoot`, when it is not the checkout root: the subagent runs there inside the isolated checkout. */
+	runSubdir?: string;
 }
 
 /**
@@ -141,9 +143,32 @@ export interface IsolationContext {
  * into. Throws when the cwd is not inside a git repository; callers surface
  * the error as a task-tool failure. Each spawn captures its own baseline from
  * its isolation copy (see {@link captureIsolationBaseline}).
+ * With `runInCwd`, the context also records the cwd's directory inside the repo, so each isolated run starts there.
  */
-export async function prepareIsolationContext(cwd: string): Promise<IsolationContext> {
-	return { repoRoot: await getRepoRoot(cwd) };
+export async function prepareIsolationContext(cwd: string, runInCwd = false): Promise<IsolationContext> {
+	const repoRoot = await getRepoRoot(cwd);
+	if (!runInCwd) return { repoRoot };
+	const runSubdir = path.relative(await fs.realpath(repoRoot), await fs.realpath(cwd));
+	return { repoRoot, runSubdir };
+}
+
+/**
+ * Directory inside the isolated checkout where the subagent runs: the checkout root, or the copy of the
+ * spawn's cwd. A git-worktree copy holds only tracked files, so a missing cwd is reported, not replaced.
+ */
+async function isolatedRunDir(isolationDir: string, runSubdir: string | undefined): Promise<string> {
+	if (runSubdir === undefined) return isolationDir;
+	const dir = path.join(isolationDir, runSubdir);
+	const isDirectory = await fs.stat(dir).then(
+		stat => stat.isDirectory(),
+		() => false,
+	);
+	if (!isDirectory) {
+		throw new Error(
+			`The task cwd \`${runSubdir}\` is not present in its isolated checkout; it may be untracked or git-ignored.`,
+		);
+	}
+	return dir;
 }
 
 /** Fingerprint of a captured delta, used to skip re-committing an unchanged workspace on release. */
@@ -565,11 +590,12 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 	try {
 		workspace = await opts.openWorkspace(opts.context.repoRoot, opts.agentId);
 		const isolationDir = workspace.dir;
+		const runDir = await isolatedRunDir(isolationDir, opts.context.runSubdir);
 		const runChanges = await trackChanges(workspace, opts.context.repoRoot);
 		changes = runChanges;
 		const result = await runSubprocess({
 			...opts.baseOptions,
-			worktree: isolationDir,
+			worktree: runDir,
 			preloadedExtensionPaths: undefined,
 			preloadedPreparedExtensions: undefined,
 			preloadedCustomToolPaths: undefined,

@@ -77,6 +77,7 @@ import { cfgAsyncEnabled } from "../tools/settings";
 import {
 	cfgTaskBatch,
 	cfgTaskDisabledAgents,
+	cfgTaskCwd,
 	cfgTaskEnableEffort,
 	cfgTaskEnableLsp,
 	cfgTaskIsolationApply,
@@ -154,6 +155,7 @@ interface TaskDescriptionOptions {
 	batchEnabled: boolean;
 	effortEnabled: boolean;
 	perCallModelEnabled: boolean;
+	cwdEnabled: boolean;
 	perCallModelAdvertisement?: PerCallModelAdvertisement;
 	evalToolsEnabled: boolean;
 	structured: boolean;
@@ -207,6 +209,7 @@ function renderDescription(options: TaskDescriptionOptions): string {
 		batchEnabled: options.batchEnabled,
 		effortEnabled: options.effortEnabled,
 		perCallModelEnabled: options.perCallModelEnabled,
+		cwdEnabled: options.cwdEnabled,
 		perCallModelAdvertisement: options.perCallModelAdvertisement,
 		evalToolsEnabled: options.evalToolsEnabled,
 		structured: options.structured,
@@ -296,6 +299,13 @@ function validateTaskInput(item: TaskItem | undefined, label: string, stepsEnabl
 		: `${label} is missing \`task\`. Every task needs complete, self-contained instructions.`;
 }
 
+/** Reject a `cwd` that is not a non-empty path while `task.cwd` is on; existence is checked at preflight, where the session cwd resolves relative paths. */
+function validateCwd(item: TaskItem | TaskParams, label: string, settings: Settings): string | undefined {
+	if (!cfgTaskCwd.get(settings) || item.cwd === undefined) return undefined;
+	if (typeof item.cwd === "string" && item.cwd.trim() !== "") return undefined;
+	return `${label} has an invalid \`cwd\`: provide a non-empty directory path.`;
+}
+
 function validateSpawnParams(
 	params: TaskParams,
 	batchEnabled: boolean,
@@ -320,6 +330,8 @@ function validateSpawnParams(
 			if (effortError) return effortError;
 			const modelError = validateModel(item, label, defaultAgent, settings);
 			if (modelError) return modelError;
+			const cwdError = validateCwd(item, label, settings);
+			if (cwdError) return cwdError;
 		}
 		const seen = new Map<string, string>();
 		for (const item of tasks) {
@@ -343,7 +355,8 @@ function validateSpawnParams(
 	return (
 		validateTaskInput(params, "The call", stepsEnabled) ??
 		validateEffort(params.effort, "The call") ??
-		validateModel(params, "The call", defaultAgent, settings)
+		validateModel(params, "The call", defaultAgent, settings) ??
+		validateCwd(params, "The call", settings)
 	);
 }
 
@@ -389,6 +402,7 @@ function resolveSpawnItems(params: TaskParams): TaskItem[] {
 	if ("isolated" in params) item.isolated = params.isolated;
 	if ("sourceSession" in params) item.sourceSession = params.sourceSession;
 	if ("model" in params) item.model = params.model;
+	if ("cwd" in params) item.cwd = params.cwd;
 	return [item];
 }
 
@@ -414,6 +428,7 @@ function spawnParamsFor(params: TaskParams, item: TaskItem, defaultAgent: string
 	if ("effort" in item) spawn.effort = item.effort;
 	if ("sourceSession" in item) spawn.sourceSession = item.sourceSession;
 	if ("model" in item) spawn.model = item.model;
+	if (item.cwd !== undefined) spawn.cwd = item.cwd;
 	if (item.isolated !== undefined) {
 		spawn.isolated = item.isolated;
 	} else if ("isolated" in params) {
@@ -479,7 +494,11 @@ function planSpawns(
 		validateSpawnParams(params, batchEnabled, stepsEnabled, defaultAgent, settings) ??
 		validateSeanceParams({ params, batchEnabled, defaultAgent, seanceAdvertised });
 	if (error) return error;
-	const items = resolveSpawnItems(params);
+	// `cwd` is accepted only while `task.cwd` is on; otherwise it is dropped, as before the field existed.
+	const cwdEnabled = cfgTaskCwd.get(settings);
+	const items = resolveSpawnItems(params).map(item =>
+		cwdEnabled || item.cwd === undefined ? item : { ...item, cwd: undefined },
+	);
 	return { params, items, spawns: items.map(item => spawnParamsFor(params, item, defaultAgent)) };
 }
 
@@ -715,6 +734,10 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		if (typeof params.model === "string") {
 			lines.push(`Model: ${truncateForPrompt(params.model)}`);
 		}
+		const cwdEnabled = cfgTaskCwd.get(this.session.settings);
+		if (cwdEnabled && typeof params.cwd === "string") {
+			lines.push(`Cwd: ${truncateForPrompt(params.cwd)}`);
+		}
 		if (typeof params.task === "string") {
 			lines.push(`Task:\n${truncateForPrompt(params.task)}`);
 		}
@@ -754,6 +777,9 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			for (const [index, item] of tasks.entries()) {
 				if (isRecord(item) && typeof item.model === "string") {
 					lines.push(`Task ${index + 1} model: ${truncateForPrompt(item.model)}`);
+				}
+				if (cwdEnabled && isRecord(item) && typeof item.cwd === "string") {
+					lines.push(`Task ${index + 1} cwd: ${truncateForPrompt(item.cwd)}`);
 				}
 			}
 			if (tasks.length > 1) {
@@ -849,6 +875,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			structured: this.#isStructured(),
 			steps: cfgTaskSteps.get(this.session.settings),
 			perCallModel: perCallModelEnabled(this.session.settings, "task"),
+			cwd: cfgTaskCwd.get(this.session.settings),
 			defaultAgent: this.#defaultAgent(),
 			seanceFields: this.#seanceSchemaFields(),
 		});
@@ -895,6 +922,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			batchEnabled: this.#isBatchEnabled(),
 			effortEnabled: cfgTaskEnableEffort.get(this.session.settings),
 			perCallModelEnabled: perCallModel,
+			cwdEnabled: cfgTaskCwd.get(this.session.settings),
 			perCallModelAdvertisement,
 			evalToolsEnabled: evalToolsEnabled(this.session),
 			structured: this.#isStructured(),
@@ -1062,6 +1090,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			invocationKind: "task",
 			assignment: spawnAssignment(params),
 			context: this.#isBatchEnabled() ? params.context?.trim() || undefined : undefined,
+			cwd: params.cwd,
 			agent: params.agent,
 			sourceSession: params.sourceSession,
 			...spawnModelFields(params),
@@ -1908,6 +1937,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				steps: params.steps,
 				agent: params.agent,
 				sourceSession: params.sourceSession,
+				cwd: params.cwd,
 				...spawnModelFields(params),
 				...this.#resultParams(params),
 				...this.#effortParams(params),
