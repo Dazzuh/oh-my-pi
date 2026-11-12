@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added prompt overrides: a file at `~/.omp/agent/prompt-overrides/<path>.md` replaces the bundled prompt `src/prompts/<path>.md`, such as the `<project-context>` footer or a tool description, read once per process so the prompt cache stays stable
+
 ## [18.19.0] - 2026-11-12
 
 ### Breaking Changes
