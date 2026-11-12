@@ -15,6 +15,7 @@
  */
 import { type } from "@oh-my-pi/omptype";
 import { Tokenizer } from "@oh-my-pi/pi-agent-core";
+import { prompt } from "@oh-my-pi/pi-utils";
 import type { ToolDefinition } from "../extensibility/extensions";
 import approveDescription from "../prompts/tools/approve.md" with { type: "text" };
 import rewriteDescription from "../prompts/tools/rewrite.md" with { type: "text" };
@@ -178,7 +179,7 @@ export class CompressProtocol {
 		return {
 			name: "rewrite",
 			label: "Rewrite",
-			description: rewriteDescription.trim(),
+			description: prompt.overridden(rewriteDescription).trim(),
 			parameters: rewriteSchema,
 			approval: "read",
 			strict: true,
@@ -204,7 +205,7 @@ export class CompressProtocol {
 		return {
 			name: "approve",
 			label: "Approve",
-			description: approveDescription.trim(),
+			description: prompt.overridden(approveDescription).trim(),
 			parameters: approveSchema,
 			approval: "read",
 			strict: true,

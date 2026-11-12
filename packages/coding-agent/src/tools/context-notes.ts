@@ -82,7 +82,7 @@ export class ContextNotesTool implements AgentTool<typeof contextNotesSchema, Co
 	readonly approval = (args: unknown): ToolApprovalDecision =>
 		args !== null && typeof args === "object" && Object.hasOwn(args, "text") ? "write" : "read";
 	readonly label = "Context Notes";
-	readonly description = contextNotesDescription;
+	readonly description = prompt.overridden(contextNotesDescription);
 	readonly parameters = contextNotesSchema;
 	// Strict-mode providers mark every property required, so an optional `text`
 	// would force models to send `""` (a clear) just to read. Stay non-strict
@@ -155,7 +155,7 @@ export class NewContextTool implements AgentTool<typeof newContextSchema, NewCon
 	readonly name = "new_context";
 	readonly approval = "write" as const;
 	readonly label = "New Context";
-	readonly description = newContextDescription;
+	readonly description = prompt.overridden(newContextDescription);
 	readonly parameters = newContextSchema;
 	readonly strict = true;
 	readonly loadMode = "essential" as const;

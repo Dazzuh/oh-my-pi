@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `prompt.setTemplateOverrides()` and `prompt.overridden()` to replace bundled prompt texts at render time
+
 ## [18.19.0] - 2026-11-12
 
 ### Added

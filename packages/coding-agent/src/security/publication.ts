@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type } from "@oh-my-pi/omptype";
+import { prompt } from "@oh-my-pi/pi-utils";
 import type { ToolDefinition } from "../extensibility/extensions";
 import securityPublishDescription from "../prompts/tools/security-publish.md" with { type: "text" };
 import type {
@@ -336,7 +337,7 @@ export function createSecurityPublicationTool(
 	return {
 		name: "security_publish",
 		label: "Publish Security Scan",
-		description: securityPublishDescription.trim(),
+		description: prompt.overridden(securityPublishDescription).trim(),
 		parameters: securityPublishSchema,
 		approval: "write",
 		strict: true,

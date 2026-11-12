@@ -9,7 +9,7 @@ import type {
 	AgentToolResult,
 	AgentToolUpdateCallback,
 } from "@oh-my-pi/pi-agent-core";
-import { escapeXmlAttribute, escapeXmlText, logger } from "@oh-my-pi/pi-utils";
+import { escapeXmlAttribute, escapeXmlText, logger, prompt } from "@oh-my-pi/pi-utils";
 import adviseDescription from "../prompts/advisor/advise-tool.md" with { type: "text" };
 import { AdvisorEmissionGuard, type AdvisorSuppressionReason, normalizeAdvisorNote } from "./emission-guard";
 
@@ -205,7 +205,7 @@ const ADVISOR_ACK_SUPPRESSED: Record<AdvisorSuppressionReason, string> = {
 export class AdviseTool implements AgentTool<typeof adviseSchema, AdviseDetails> {
 	readonly name = "advise";
 	readonly label = "Advise";
-	readonly description = adviseDescription;
+	readonly description = prompt.overridden(adviseDescription);
 	readonly parameters = adviseSchema;
 	readonly intent = "omit" as const;
 	/**

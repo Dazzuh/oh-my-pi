@@ -86,6 +86,7 @@ import {
 	sessionModelDiscoveryProviders,
 } from "./config/model-resolver";
 import { formatModelSelectorValue, parseModelString } from "@oh-my-pi/pi-tui/overlays/model-selector";
+import { loadPromptOverrides } from "./config/prompt-overrides";
 import { loadPromptTemplates as loadPromptTemplatesInternal, type PromptTemplate } from "./config/prompt-templates";
 import { buildServiceTierByFamily } from "./config/service-tier";
 import { bindEffects, combine } from "./config/registry";
@@ -1978,6 +1979,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 	registerSshCleanup();
 	registerEvalCleanup();
+	// Before any tool or system prompt renders a bundled prompt.
+	await loadPromptOverrides(agentDir);
 
 	const settings = await (options.settings ??
 		options.settingsManager ??
