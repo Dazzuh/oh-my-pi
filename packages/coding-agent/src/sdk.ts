@@ -1965,8 +1965,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 	registerSshCleanup();
 	registerEvalCleanup();
-	// Before any tool or system prompt renders a bundled prompt.
-	await loadPromptOverrides(agentDir);
 
 	const settings = await (options.settings ??
 		options.settingsManager ??
@@ -1976,6 +1974,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	// then hands them back to the previous holder. Subagents and helper sessions never take them,
 	// so a parent's live edits keep reaching discovery and effects.
 	const bindsProcessState = options.bindProcessState !== false && !options.parentTaskPrefix && !options.taskDepth;
+	// Before any tool or system prompt renders a bundled prompt. Only a top-level session picks the
+	// override set; its subagents render with the same files, wherever they run.
+	if (bindsProcessState) await loadPromptOverrides({ agentDir, cwd });
 	const restoreProviderToggles = bindsProcessState
 		? logger.time("initializeWithSettings", initializeWithSettings, settings)
 		: undefined;

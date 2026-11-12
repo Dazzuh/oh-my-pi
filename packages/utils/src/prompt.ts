@@ -584,6 +584,11 @@ export function setTemplateOverrides(overrides: ReadonlyMap<string, string>): vo
 	compiledMarkedCache.clear();
 }
 
+/** The registered overrides, for handing to another thread that renders the same prompts. */
+export function getTemplateOverrides(): ReadonlyMap<string, string> {
+	return templateOverrides;
+}
+
 /** The registered replacement for a bundled prompt text, or the text itself. */
 export function overridden(text: string): string {
 	return templateOverrides.get(text) ?? text;
