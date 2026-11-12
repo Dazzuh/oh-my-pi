@@ -92,3 +92,18 @@ Both smoke steps printed `omp --version: omp/18.19.0+dz.<n>` and `smoke-test: ok
   (latest = dz.2, previous = dz.1), `rollback` (→ dz.1), `rollback` (→ dz.2). `omp update`, with omp-dz first on
   PATH: "…omp-dz\bin\omp.exe is installed and kept up to date by omp-dz (agent-kit/omp-dz/omp-dz.ps1)"; binary
   unchanged. First run's state.json caught `--smoke-test` output in the version field; fixed before commit.
+
+## 18:00-18:10 Stop Managing, Path, extensions, close
+
+- Darryn clicked "Stop managing omp" (Tern `state.json` → `managed: false`, its Path entry and `manager.json` gone).
+  `omp-dz.ps1 add-path` put `%LOCALAPPDATA%\omp-dz\bin` first on the user Path.
+- Path rebuilt from the registry (Machine + User, what a new Windows terminal gets): `Get-Command omp -All` →
+  only `C:\Users\Dazzuh\AppData\Local\omp-dz\bin\omp.exe`; `omp --version` → `omp/18.19.0+dz.2`.
+- New Tern terminals still prepend `AppData\Local\Tern\omp\bin` (index 0 of the pane Path) until Tern restarts.
+  Darryn deferred the restart; tracked as omp#q4b2. Acceptance 6 reworded accordingly.
+- Extensions in a fresh fork session, `omp-dz\bin\omp.exe --mode rpc --no-session` (log `omp.2026-11-12.44384.log`):
+  `get_available_commands` extension commands include `run` (hq-run, `agent-kit/extensions/hq-run/index.js:592`) and
+  `kata-focus` (omp-live, `omp-live.js:386`); doc-skills' `session_start` handler ran (`debug doc-skills: no
+  version omp`, provoked by a PATH where `omp` resolves to nothing, so no docs refresh started). An interactive
+  fork session in a Tern pane also printed `v18.19.0+dz.2` and `xdev: xd://: mounted hq_run_message`.
+- Side effect: a `tern -e` attempt opened (and I closed within seconds) an exited tab in a visible Tern session.
