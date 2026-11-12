@@ -119,3 +119,15 @@ Stopped at hq's request. Cancelled: Pac1 subagent (Windows cause fixed, CI timin
 PR #7 (Codex terra hit its usage limit first). PR #7 attempt 1 failed only in `cli-responses-websocket-recovery.test.ts`
 (pac1, 3 cases); PR #5 green after one rerun (ovnfs EPIPE flake); PR #6 CI was running.
 pac1 WIP pushed as `fix/websocket-recovery-test` (see its commit and `omp-wt/pac1-log.md`). No PR merged, no release.
+
+## 20:00 resumed (hq: 429 cleared; one subagent at a time, non-Anthropic reviews)
+
+- PR #6 CI (run 43283616810) failed: (a) `test/workload/spec.test.ts` "finds project workloads and resolves a duplicate
+  name to the closest one": a real regression of my discovery fix `4570080504` on Linux, where the test's `/tmp` fixture is
+  outside home and now stops at cwd. Test pinned `os.homedir()` to the fixture root (`3a904b5d60`), 42 pass. (b) pac1.
+  (c) `browser-tab-worker-startup.test.ts` "Expected the shared headless browser" ×5, unrelated to workloads (flake).
+- PR #7 CI attempt 1: only pac1.
+- PR #7 review rerun on `opencode-go/gpt-6-luna` (Codex terra hit its usage limit).
+- pac1: one subagent (`Pac1Linux`) reproducing on Linux in WSL Ubuntu under 4-CPU contention. Windows facts so far:
+  under 14× CPU load, CLI startup up to 22 s but prompt→first delta 268 ms, so the CI wait (first prompt's first text
+  delta, 25 s) is something Linux/CI-specific.
