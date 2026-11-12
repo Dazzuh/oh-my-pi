@@ -183,3 +183,17 @@ pac1 WIP pushed as `fix/websocket-recovery-test` (see its commit and `omp-wt/pac
 - Acceptance 6 (three green runs in a row after the pac1 merge) has no runs yet: no PR has run CI since the merge.
   Upstream flakes unrelated to pac1 (browser-webmcp, browser-tab-worker-startup, job-lifecycle, ovnfs-search) turned
   6 of the ~12 PR runs in this run red. Three in a row needs those too, or a decision to count the pac1 job only.
+
+## 21:50 Darryn's answers; closing
+
+Darryn's answers (relayed by hq): drop A, B, C, E, F, H; approve the footer at user level only, with no tool or
+system-prompt rewrites in this run (those go through the hub-prompt work with a side-by-side replay); Acceptance 6
+counts the job that runs the pac1 test.
+
+- A/B/C dropped; hwgw, 34sm and p17n closed wontfix (consumer omp-cockpit archived). E/F/H dropped.
+- Footer: `agent-kit/omp-config/prompt-overrides/system/project-prompt.md` (agent-kit `e909737`), copied to
+  `~/.omp/agent/prompt-overrides/system/project-prompt.md`. It is the bundled file at dz.3, with `<critical>` replaced
+  by the approved `<completion>` block.
+- Live check, installed dz.3, fresh session in a neutral folder, two turns: both requests carry the `<completion>`
+  block (main-session branch) and no bundled `<critical>` text. `systemSha 11897edecca82ea1` on both turns,
+  `toolsSha 957ea6270baf4319`, the same as upstream bundled. Turn 2 usage: `cacheRead 23240`, `cacheWrite 16`.
