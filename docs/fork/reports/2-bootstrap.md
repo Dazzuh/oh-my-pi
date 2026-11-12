@@ -67,3 +67,28 @@ strips `+…`, so update and compat checks see 18.19.0; a `-dz.1` prerelease wou
 - Upstream's run of the same commit passed the job on its private runners (can1357 run 43145278278).
 - Filed omp#pac1. Asked Darryn whether to merge PR #1 with that job red (omp#ama4 comment).
 - Installer drafted in `agent-kit/omp-dz/` (`omp-dz.ps1`, `README.md`); waits for a release.
+
+## 17:25-18:00 merged, released both ways, installer run
+
+- Darryn chose option 1 (via hq): PR #1 merged as `401cd763a3`; Acceptance 2 reworded to except omp#pac1. The 4th
+  PR #1 run (43267644912) failed native/unit 1/3 and 3/3 again; PR #2's run 43271547018 then passed every job,
+  so pac1 is intermittent on hosted runners.
+- Every push to `main` (merges of #1 and #2) started a CI push run that the guard cancelled: 43268062757,
+  43274285448.
+- Darryn's call (via hq): native addon prebuilt unless changed. PR #2 (`056714a8a4`): compare the native inputs
+  with the upstream tag; identical → npm `@oh-my-pi/pi-natives-win32-x64@<version>`, different → Cargo with an
+  `actions/cache` target keyed by those inputs (saved on `main`-ref runs only).
+
+| Release | Addon source | Workflow run | Total | Addon step | Binary SHA-256 |
+|---|---|---|---|---|---|
+| `v18.19.0-dz.1` | Cargo build on `windows-2025` | 43268085319 | 34 min 32 s | 31 min 08 s | `720a20a0…a1e6` |
+| `v18.19.0-dz.2` | npm `@oh-my-pi/pi-natives-win32-x64@18.19.0` | 43274295575 | 3 min 32 s | 9 s | `436a0ce3…9851` |
+
+Both smoke steps printed `omp --version: omp/18.19.0+dz.<n>` and `smoke-test: ok`.
+
+- Downloaded dz.1 here (`gh release download`): `sha256sum` matched the `.sha256` asset, `--version` →
+  `omp/18.19.0+dz.1`, `--smoke-test` → `smoke-test: ok` (throwaway HOME/LOCALAPPDATA).
+- Installer `agent-kit/omp-dz/omp-dz.ps1` (agent-kit `dcf17f1`): `install -Tag v18.19.0-dz.1`, then `install`
+  (latest = dz.2, previous = dz.1), `rollback` (→ dz.1), `rollback` (→ dz.2). `omp update`, with omp-dz first on
+  PATH: "…omp-dz\bin\omp.exe is installed and kept up to date by omp-dz (agent-kit/omp-dz/omp-dz.ps1)"; binary
+  unchanged. First run's state.json caught `--smoke-test` output in the version field; fixed before commit.
