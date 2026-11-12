@@ -142,7 +142,13 @@ function workloadSearchDirs(cwd: string, agentDir: string | undefined): { dir: s
 	} catch (err) {
 		logger.debug("Failed to resolve VCS root for workload discovery", { err: String(err) });
 	}
-	const stop = repoRoot ?? os.homedir();
+	// The walk can only reach home when home is an ancestor of cwd. Outside a
+	// repo and outside home, probe cwd alone rather than climbing to the root.
+	const homeDir = os.homedir();
+	const relativeToHome = path.relative(homeDir, current);
+	const homeIsAncestor =
+		relativeToHome === "" || (relativeToHome.split(path.sep)[0] !== ".." && !path.isAbsolute(relativeToHome));
+	const stop = repoRoot ?? (homeIsAncestor ? homeDir : current);
 	while (true) {
 		dirs.push({ dir: path.resolve(current, ".omp", WORKLOAD_DIR), level: "project" });
 		dirs.push({ dir: path.resolve(current, WORKLOAD_DIR), level: "project" });

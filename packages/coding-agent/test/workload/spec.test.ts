@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { afterAll, describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it, spyOn } from "bun:test";
 import {
 	discoverWorkloads,
 	loadWorkload,
@@ -234,6 +234,28 @@ describe("workload discovery", () => {
 
 		const loaded = await loadWorkload("shared", nested, path.join(root, "no-user-dir"));
 		expect(loaded.steps[0]?.id).toBe("inner");
+	});
+
+	it("does not climb above cwd when cwd is outside both home and a repository", async () => {
+		const root = await tempRoot();
+		const parent = path.join(root, "parent");
+		const cwd = path.join(parent, "child");
+		await fs.mkdir(path.join(parent, "workloads"), { recursive: true });
+		await fs.mkdir(cwd, { recursive: true });
+		await fs.writeFile(
+			path.join(parent, "workloads", "above.yml"),
+			`name: above\nsteps:\n  - id: a\n    prompt: a\n`,
+		);
+		// Home is somewhere that is not an ancestor of cwd.
+		const elsewhere = path.join(root, "home");
+		await fs.mkdir(elsewhere);
+		const homedir = spyOn(os, "homedir").mockReturnValue(elsewhere);
+		try {
+			const found = await discoverWorkloads(cwd, path.join(root, "no-user-dir"));
+			expect(found.map(candidate => candidate.name)).not.toContain("above");
+		} finally {
+			homedir.mockRestore();
+		}
 	});
 
 	it("loads an explicit path and rejects an unknown name with the available list", async () => {
