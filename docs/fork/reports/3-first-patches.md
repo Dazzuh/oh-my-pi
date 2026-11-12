@@ -150,3 +150,18 @@ pac1 WIP pushed as `fix/websocket-recovery-test` (see its commit and `omp-wt/pac
   delta 2.2 s. The PR #6 CI failure (run 43287268895) showed `RUN_BASH` resolving with no `tool_execution_end`
   although bash ran (effect file `x`): events landed on another turn, consistent with extra requests reaching the
   fixture (the Windows mechanism). Draft PR #8 (`--no-skills` fix): first CI run green; full reruns started for 3 in a row.
+
+## 22:30 PR #6 merged; project layer (PR #9)
+
+- PR #6 merged by rebase (`a5f2a68f78`..`c0ff311d45`), so Xytronix's four commits keep his authorship.
+  CI was green on head `e75d1fb5c4`.
+- PR #8 (pac1, draft): `cli-responses-websocket-recovery.test.ts` passed on hosted CI in both runs. Attempt 2 failed
+  only on `job-lifecycle.test.ts` "allows a cancelled bash job to run its TERM cleanup", which is unrelated. Rebased
+  onto main for a third run. Before the fix, the file failed in roughly half the PR runs (#1 ×3, #6 ×2, #7 ×1).
+- Unrelated upstream flakes seen on hosted runners in this run: `ovnfs-search.test.ts` (EPIPE),
+  `browser-webmcp.test.ts`, `browser-tab-worker-startup.test.ts` (×2), `job-lifecycle.test.ts`, and
+  `memory-tools.test.ts` (WSL). Acceptance 6 ("green three times in a row") depends on these too.
+- Project layer (Darryn via hq, "send layer 3 yeah"): PR #9 `feat/prompt-overrides-project`. Evidence is in the PR
+  and in the Kata Decision comment. Design: only a top-level session loads overrides (`bindsProcessState`), and the set
+  travels to worker-thread subagents in `SubagentRunRequest`. A `task.cwd` subagent therefore cannot swap the
+  process-wide set.
