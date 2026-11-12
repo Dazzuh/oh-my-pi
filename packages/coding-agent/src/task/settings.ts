@@ -363,6 +363,19 @@ export const cfgTaskEnableEffort = register({
 	},
 });
 
+export const cfgTaskCwd = register({
+	id: "task.cwd",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "tasks",
+		group: "Subagents",
+		label: "Per-Task Working Directory",
+		description:
+			"Expose the optional `cwd` on task spawns, running a subagent in another directory: its tools, project context and `.omp/` config resolve there, and with `isolated: true` the worktree is of that directory's git repository. Off: `cwd` is not advertised and every subagent runs in the session's directory.",
+	},
+});
+
 export const cfgTaskPerCallModel = register({
 	id: "task.perCallModel",
 	type: "enum",

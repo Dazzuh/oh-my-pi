@@ -23,6 +23,7 @@ const AGENT: AgentDefinition = {
 
 const POLICY = {
 	discovery: { agents: [AGENT], projectAgentsDir: null },
+	cwd: process.cwd(),
 	agentName: "scout",
 	agent: AGENT,
 	effectiveAgent: AGENT,

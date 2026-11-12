@@ -2280,6 +2280,8 @@ export interface TaskItem {
 	tools?: string[];
 	/** Run this spawn in an isolated worktree (batch form; flat form carries it top-level). */
 	isolated?: boolean;
+	/** Working directory of this spawn (`task.cwd`): absolute, or relative to the session cwd; must be an existing directory. */
+	cwd?: string;
 }
 
 /**
@@ -2317,6 +2319,8 @@ export interface TaskParams {
 	context?: string;
 	/** Run in an isolated worktree (flat form; per-item in batch form). */
 	isolated?: boolean;
+	/** Working directory of this spawn (flat form; see {@link TaskItem.cwd}). */
+	cwd?: string;
 }
 
 /**
