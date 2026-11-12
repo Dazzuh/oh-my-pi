@@ -6,8 +6,10 @@
  * decided here so the same behavior is reachable programmatically.
  */
 import * as path from "node:path";
-import { getProjectDir } from "@oh-my-pi/pi-utils";
+import { getProjectDir, sanitizeText } from "@oh-my-pi/pi-utils";
 import chalk from "@oh-my-pi/pi-utils/chalk";
+import { singleLine, replaceTabs, truncateToWidth } from "@oh-my-pi/pi-tui";
+import { shortenPath, TRUNCATE_LENGTHS } from "@oh-my-pi/pi-tui/render/render-utils";
 import { discoverWorkloads, loadWorkload, resolveWorkloadArgs, type WorkloadSpec, WorkloadSpecError } from "./spec";
 import { runWorkload, type WorkloadRunEvent, type WorkloadRunResult } from "./runner";
 
@@ -25,16 +27,27 @@ export interface RunWorkloadCommandOptions {
 	concurrency?: number;
 }
 
+/**
+ * Make workload-derived text (descriptions, argv, template expressions, shell
+ * stderr) safe for one terminal row: strip escape sequences and control
+ * characters, expand tabs, collapse line breaks, and bound the width.
+ */
+function displayText(text: string, width: number = TRUNCATE_LENGTHS.LINE): string {
+	return truncateToWidth(singleLine(sanitizeText(text)), width);
+}
+
 /** Render the wave plan without spawning anything, so a spec can be reviewed. */
 function renderPlan(spec: WorkloadSpec, args: Record<string, string>): string {
 	const lines = [
-		`${chalk.bold(spec.name)} ${chalk.dim(spec.sourcePath)}`,
-		...(spec.description ? [chalk.dim(spec.description)] : []),
+		`${chalk.bold(spec.name)} ${chalk.dim(displayText(spec.sourcePath))}`,
+		...(spec.description ? [chalk.dim(displayText(spec.description))] : []),
 	];
 	const declaredArgs = Object.keys(spec.args);
 	if (declaredArgs.length > 0) {
 		lines.push(
-			chalk.dim(`args: ${declaredArgs.map(name => `${name}=${args[name] ?? chalk.red("<unset>")}`).join(" ")}`),
+			chalk.dim(
+				`args: ${declaredArgs.map(name => `${name}=${args[name] === undefined ? chalk.red("<unset>") : displayText(args[name])}`).join(" ")}`,
+			),
 		);
 	}
 	const stepsById: Record<string, (typeof spec.steps)[number]> = {};
@@ -45,10 +58,10 @@ function renderPlan(spec: WorkloadSpec, args: Record<string, string>): string {
 			const step = stepsById[id];
 			if (!step) continue;
 			const facets = [
-				step.run ? `run ${step.run.join(" ")}` : `agent ${step.agent}`,
-				step.model ? `model ${step.model}` : undefined,
+				step.run ? `run ${displayText(step.run.join(" "))}` : `agent ${displayText(step.agent)}`,
+				step.model ? `model ${displayText(step.model)}` : undefined,
 				step.effort ? `effort ${step.effort}` : undefined,
-				step.forEach ? `for_each ${step.forEach} (concurrency ${step.concurrency})` : undefined,
+				step.forEach ? `for_each ${displayText(step.forEach)} (concurrency ${step.concurrency})` : undefined,
 				step.isolated ? "isolated" : undefined,
 				step.retries > 0 ? `retries ${step.retries}` : undefined,
 				step.onFailure === "continue" ? "on_failure continue" : undefined,
@@ -73,12 +86,12 @@ function renderResult(result: WorkloadRunResult): string {
 		].filter(Boolean);
 		const detail = report.error ?? report.skipReason;
 		return `${glyph[report.status] ?? "?"} ${report.id} ${chalk.dim(facets.join(" · "))}${
-			detail ? `\n    ${chalk.red(detail)}` : ""
+			detail ? `\n    ${chalk.red(displayText(detail))}` : ""
 		}`;
 	});
 	lines.push(
 		`${result.status === "ok" ? chalk.green("workload ok") : chalk.red("workload failed")} ${chalk.dim(
-			`${result.name} · ${(result.durationMs / 1000).toFixed(1)}s`,
+			`${displayText(result.name)} · ${(result.durationMs / 1000).toFixed(1)}s`,
 		)}`,
 	);
 	if (result.ledgerPath) lines.push(chalk.dim(`ledger: ${result.ledgerPath}`));
@@ -106,7 +119,7 @@ export async function runWorkloadCommand(options: RunWorkloadCommandOptions = {}
 			}
 			for (const candidate of candidates) {
 				process.stdout.write(
-					`${chalk.cyan(candidate.name)} ${chalk.dim(`${candidate.level} · ${path.relative(cwd, candidate.path) || candidate.path}`)}\n`,
+					`${chalk.cyan(candidate.name)} ${chalk.dim(`${candidate.level} · ${displayText(shortenPath(path.relative(cwd, candidate.path) || candidate.path))}`)}\n`,
 				);
 			}
 			return { exitCode: 0 };
@@ -132,8 +145,8 @@ export async function runWorkloadCommand(options: RunWorkloadCommandOptions = {}
 						);
 					} else if (event.kind === "step-start") {
 						const facets = [
-							event.description,
-							event.model,
+							event.description ? displayText(event.description) : undefined,
+							event.model ? displayText(event.model) : undefined,
 							event.items ? `${event.items} items` : undefined,
 						].filter(Boolean);
 						process.stderr.write(`${chalk.dim("→")} ${event.id} ${chalk.dim(facets.join(" · "))}\n`);
@@ -151,7 +164,7 @@ export async function runWorkloadCommand(options: RunWorkloadCommandOptions = {}
 		if (options.json) {
 			process.stdout.write(`${JSON.stringify({ error: message }, null, "\t")}\n`);
 		} else {
-			process.stderr.write(`${chalk.red("workload:")} ${message}\n`);
+			process.stderr.write(`${chalk.red("workload:")} ${replaceTabs(sanitizeText(message))}\n`);
 		}
 		return { exitCode: 1 };
 	}
