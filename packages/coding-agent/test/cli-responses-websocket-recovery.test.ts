@@ -66,7 +66,6 @@ async function withCli(
 		path.join(agentDir, "config.yml"),
 		JSON.stringify({
 			modelRoles: { default: "openai/gpt-5-mini" },
-			defaultThinkingLevel: "off",
 			retry: { enabled: true, maxRetries: 1, baseDelayMs: 1, maxDelayMs: 1000, modelFallback: false },
 			providers: {
 				openaiResponsesWebsockets: options.websockets === "default" ? undefined : (options.websockets ?? true),
@@ -99,7 +98,10 @@ async function withCli(
 		provider: "openai",
 		model: "gpt-5-mini",
 		sessionDir: tempDir.join("sessions"),
-		args: ["--no-title", "--no-lsp", "--no-extensions", "--no-context-files", "--tools", "bash"],
+		// Background skill-description compression makes its own provider calls and would reach this
+		// fixture. Windows temp dirs sit under the user profile, so ancestor skill dirs are discovered
+		// there. Skills are off so only the scripted turns reach the fixture.
+		args: ["--no-title", "--no-lsp", "--no-extensions", "--no-context-files", "--no-skills", "--tools", "bash"],
 		spawn: args => ptree.spawn([process.execPath, cliEntry, ...args], { cwd: project, env, stdin: "pipe" }),
 	});
 	const events: AgentEvent[] = [];
