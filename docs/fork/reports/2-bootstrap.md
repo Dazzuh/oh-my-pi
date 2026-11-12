@@ -23,3 +23,27 @@ Log, appended as the run goes. Times are local (GMT).
 - Non-PR CI is neutralised by `fork-ci-guard.yml` (cancels every CI run whose event isn't `pull_request`), so
   `ci.yml` stays byte-identical to upstream. Alternative rejected: editing `ci.yml`'s `runs-on` and
   `release_metadata` lines, which would conflict on every upstream rebase.
+
+## 16:55 CI guard proven, Nix off
+
+- First push to fork `main` (`0699b0ecf8`) started CI run 43263066132 (push). `Fork CI guard` run 43263078645
+  cancelled it: conclusion `cancelled`; only the hosted `Resolve release metadata` job finished (`success`, no tag
+  at HEAD), every `vmon` job `cancelled`.
+- `gh workflow disable "OMP Nix"` → `disabled_manually`.
+
+## 16:58 Windows release workflow
+
+`fork-release-windows.yml`, landed through the test PR (a docs-only PR would get no CI: `ci.yml`'s path filter has
+no `docs/**`, but it does have `.github/**`).
+
+How the Windows native addon gets into the binary: the workflow builds it from this repo's `crates/` on the
+`windows-2025` runner with `bun run build:native` (Cargo/N-API host path, profile `ci`,
+`RUSTFLAGS=-C target-feature=+crt-static -C target-cpu=x86-64-v2`). The host build names the file after the runner
+CPU (`-modern` on AVX2), so it is renamed to `pi_natives.win32-x64-baseline.node`, the one addon upstream's
+`win32-x64` binary embeds; `ci-release-build-binaries.ts` then embeds it (zstd frame + manifest,
+`packages/natives/scripts/embed-native.ts`). Rejected: fetching `@oh-my-pi/pi-natives-win32-x64` from npm, which
+would silently drop any fork Rust change.
+
+Version: the build checkout's `packages/utils/package.json` version (the source of `VERSION`) becomes
+`18.19.0+dz.<n>`. Build metadata, not a prerelease suffix: `compareVersions` (`packages/utils/src/version.ts`)
+strips `+…`, so update and compat checks see 18.19.0; a `-dz.1` prerelease would sort below 18.19.0.

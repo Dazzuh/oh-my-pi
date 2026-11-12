@@ -1,0 +1,146 @@
+name: Fork release (Windows x64)
+
+# Fork-only (Dazzuh/oh-my-pi); see docs/fork/README.md.
+#
+# A `v<upstream version>-dz.<n>` tag on `main` builds the Windows x64
+# single-file binary from this repository (native addon included, built from
+# crates/ with Cargo) and publishes it with its SHA-256 as a GitHub release.
+# Nothing is published anywhere else.
+
+on:
+   push:
+      tags: ["v*-dz.*"]
+   workflow_dispatch:
+      inputs:
+         tag:
+            description: "Existing release tag to (re)build, e.g. v18.19.0-dz.1"
+            required: true
+            type: string
+
+concurrency:
+   group: fork-release-${{ inputs.tag || github.ref_name }}
+   cancel-in-progress: false
+
+permissions:
+   contents: write
+
+env:
+   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+   windows_x64:
+      name: Build and release omp-windows-x64.exe
+      runs-on: windows-2025
+      timeout-minutes: 150
+      defaults:
+         run:
+            shell: bash
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+           with:
+              ref: refs/tags/${{ env.RELEASE_TAG }}
+              fetch-depth: 0
+
+         - name: Check tag
+           id: tag
+           run: |
+              set -euo pipefail
+              if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-dz\.([0-9]+)$ ]]; then
+                echo "::error::$RELEASE_TAG is not v<upstream version>-dz.<n>"
+                exit 1
+              fi
+              upstream="${BASH_REMATCH[1]}"
+              n="${BASH_REMATCH[2]}"
+              package_version=$(jq -r .version packages/coding-agent/package.json)
+              if [ "$upstream" != "$package_version" ]; then
+                echo "::error::$RELEASE_TAG names $upstream but packages/coding-agent/package.json is $package_version"
+                exit 1
+              fi
+              git fetch --no-tags origin main
+              if ! git merge-base --is-ancestor HEAD origin/main; then
+                echo "::error::$RELEASE_TAG ($(git rev-parse --short HEAD)) is not on main"
+                exit 1
+              fi
+              echo "version=$upstream+dz.$n" >> "$GITHUB_OUTPUT"
+
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+           with:
+              bun-version: 1.4.4
+
+         - run: bun install --frozen-lockfile
+
+         # rust-toolchain.toml pins the nightly; rustup installs it on first use.
+         # The local Cargo/N-API build names its output after the runner's CPU
+         # (`-modern` with AVX2), so pin the x86-64-v2 baseline ISA with the
+         # static CRT (what build-bindings.ts sets for a baseline host) and file
+         # the addon as upstream's `win32-x64-baseline`, the one addon upstream's
+         # win32-x64 release binary embeds.
+         - name: Build native addon (Cargo, win32-x64-baseline)
+           env:
+              OMP_NATIVE_CARGO_PROFILE: ci
+              RUSTFLAGS: -C target-feature=+crt-static -C target-cpu=x86-64-v2
+           run: |
+              set -euo pipefail
+              rustup show active-toolchain || rustup toolchain install
+              bun run build:native
+              cd packages/natives/native
+              if [ -f pi_natives.win32-x64-modern.node ]; then
+                mv -f pi_natives.win32-x64-modern.node pi_natives.win32-x64-baseline.node
+              fi
+              ls -l pi_natives.win32-x64-*.node
+
+         - name: Set fork version
+           env:
+              FORK_VERSION: ${{ steps.tag.outputs.version }}
+           run: |
+              set -euo pipefail
+              # SemVer build metadata (`+dz.<n>`) sorts equal to the upstream
+              # version, so omp's version comparisons behave as upstream's.
+              jq --arg v "$FORK_VERSION" '.version = $v' packages/utils/package.json > packages/utils/package.json.tmp
+              mv packages/utils/package.json.tmp packages/utils/package.json
+
+         - name: Build release binary
+           env:
+              RELEASE_TARGETS: win32-x64
+           run: bun run ci:release:build-binaries
+
+         - name: Smoke release binary
+           shell: pwsh
+           env:
+              BINARY: packages/coding-agent/binaries/omp-windows-x64.exe
+              FORK_VERSION: ${{ steps.tag.outputs.version }}
+           run: |
+              $runtimeDir = Join-Path $env:RUNNER_TEMP "omp-smoke"
+              $env:HOME = Join-Path $runtimeDir "home"
+              $env:USERPROFILE = $env:HOME
+              $env:LOCALAPPDATA = Join-Path $runtimeDir "local"
+              $env:XDG_DATA_HOME = Join-Path $runtimeDir "xdg"
+              New-Item -ItemType Directory -Force -Path $env:HOME, $env:LOCALAPPDATA, $env:XDG_DATA_HOME | Out-Null
+              $reported = (& $env:BINARY --version | Out-String).Trim()
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              Write-Output "omp --version: $reported"
+              if (-not $reported.Contains($env:FORK_VERSION)) {
+                Write-Output "::error::--version printed '$reported', expected it to contain $env:FORK_VERSION"
+                exit 1
+              }
+              & $env:BINARY --smoke-test
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+         - name: Publish GitHub release
+           env:
+              GH_TOKEN: ${{ github.token }}
+              FORK_VERSION: ${{ steps.tag.outputs.version }}
+           run: |
+              set -euo pipefail
+              mkdir -p dist
+              cp packages/coding-agent/binaries/omp-windows-x64.exe dist/
+              cd dist
+              sha256sum omp-windows-x64.exe > omp-windows-x64.exe.sha256
+              cat omp-windows-x64.exe.sha256
+              notes="omp $FORK_VERSION for Windows x64, built from $(git rev-parse HEAD) by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. See docs/fork/README.md."
+              if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+                gh release upload "$RELEASE_TAG" omp-windows-x64.exe omp-windows-x64.exe.sha256 --clobber -R "$GITHUB_REPOSITORY"
+              else
+                gh release create "$RELEASE_TAG" omp-windows-x64.exe omp-windows-x64.exe.sha256 \
+                  --verify-tag --title "$RELEASE_TAG" --notes "$notes" -R "$GITHUB_REPOSITORY"
+              fi
