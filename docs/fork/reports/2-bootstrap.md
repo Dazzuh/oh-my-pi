@@ -58,3 +58,12 @@ strips `+…`, so update and compat checks see 18.19.0; a `-dz.1` prerelease wou
 - Local dry run of the release build step on this machine (npm addon standing in for the Cargo one,
   `RELEASE_TARGETS=win32-x64 bun run ci:release:build-binaries`, utils version set to `18.19.0+dz.0`): exit 0 in
   70 s; the binary printed `omp/18.19.0+dz.0` and `smoke-test: ok`.
+
+## 17:20 PR #1 CI attempts 2-3, escalated
+
+- Run 43264723172 attempts 1 and 2: same job red, same file (`cli-responses-websocket-recovery.test.ts`, 25 s
+  `promptTimeout`), a different case each time; once each a browser test (`browser-webkit-host.test.ts`). All other
+  jobs green, all publish jobs `skipped`. PR-path addon: npm `@oh-my-pi/pi-natives-linux-x64@18.19.0` (cache miss).
+- Upstream's run of the same commit passed the job on its private runners (can1357 run 43145278278).
+- Filed omp#pac1. Asked Darryn whether to merge PR #1 with that job red (omp#ama4 comment).
+- Installer drafted in `agent-kit/omp-dz/` (`omp-dz.ps1`, `README.md`); waits for a release.
