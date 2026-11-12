@@ -569,6 +569,26 @@ export function registerPartial(name: string, fn: Template): void {
 	handlebars.registerPartial(name, fn);
 }
 
+// Bundled template text -> the user's replacement source; empty unless overrides were registered.
+let templateOverrides: ReadonlyMap<string, string> = new Map();
+
+/**
+ * Register replacements for bundled prompt texts: each key is a bundled template's exact text and its
+ * value the source to use instead. {@link compile}, {@link render} and {@link renderTracked} apply them,
+ * and {@link overridden} serves text a caller uses without rendering. Replaces the previous set; an empty
+ * map restores the bundled texts.
+ */
+export function setTemplateOverrides(overrides: ReadonlyMap<string, string>): void {
+	templateOverrides = overrides;
+	compiledTemplateCache.clear();
+	compiledMarkedCache.clear();
+}
+
+/** The registered replacement for a bundled prompt text, or the text itself. */
+export function overridden(text: string): string {
+	return templateOverrides.get(text) ?? text;
+}
+
 // Bounded: some callers compile template text that already embeds user arguments.
 const compiledTemplateCache = new LRUCache<string, (context: TemplateContext) => string>({ max: 256 });
 
@@ -576,7 +596,7 @@ export function compile(template: string): (context: TemplateContext) => string 
 	// Keyed on the raw template so repeat renders skip parsing.
 	const cached = compiledTemplateCache.get(template);
 	if (cached) return cached;
-	const compiled = handlebars.compile(template, { noEscape: true, strict: false }) as (
+	const compiled = handlebars.compile(overridden(template), { noEscape: true, strict: false }) as (
 		context: TemplateContext,
 	) => string;
 	compiledTemplateCache.set(template, compiled);
@@ -617,7 +637,7 @@ const compiledMarkedCache = new LRUCache<string, Handlebars.MarkedTemplateDelega
 export function renderTracked(template: string, context: TemplateContext, items: readonly object[]): TrackedRender {
 	let compiled = compiledMarkedCache.get(template);
 	if (!compiled) {
-		compiled = handlebars.compileMarked<TemplateContext>(template, { noEscape: true, strict: false });
+		compiled = handlebars.compileMarked<TemplateContext>(overridden(template), { noEscape: true, strict: false });
 		compiledMarkedCache.set(template, compiled);
 	}
 	const itemIndex = new Map<unknown, number>(items.map((item, index) => [item, index]));
