@@ -165,3 +165,21 @@ pac1 WIP pushed as `fix/websocket-recovery-test` (see its commit and `omp-wt/pac
   and in the Kata Decision comment. Design: only a top-level session loads overrides (`bindsProcessState`), and the set
   travels to worker-thread subagents in `SubagentRunRequest`. A `task.cwd` subagent therefore cannot swap the
   process-wide set.
+
+## 21:30 merged all; release dz.3 installed
+
+- PR #9 (project layer) squash-merged as `721148db5b`; CI green.
+- PR #8 (pac1) squash-merged as `33efc2983e` after a fully green rerun. Job `native/unit (TS) 1/3` (which runs this
+  file) passed in all 3 attempts on PR #8. pac1 closed done.
+- Release `v18.19.0-dz.3` (tag at `33efc2983e`): `fork-release-windows.yml` run 43299477713 succeeded.
+  Downloaded binary: sha256 `69ea3b0b…1909c` matches; `omp/18.19.0+dz.3`; `--smoke-test` ok; `workload smoke --dry-run`
+  printed the wave plan; `workload smoke` → `workload ok smoke`; the probe in project P showed the `PROJECT-READ` read
+  description.
+- Installed: `omp-dz.ps1 install -Tag v18.19.0-dz.3` → sha ok, smoke ok, current `v18.19.0-dz.3`, previous
+  `v18.19.0-dz.2` (rollback: `omp-dz.ps1 rollback`); `bin\omp.exe --version` → `omp/18.19.0+dz.3`.
+- Extensions on the installed binary (RPC `get_available_commands`, from a neutral dir): `kata-focus` (omp-live) and
+  `run` (hq-run) are registered, and `hq_run` shows in the system prompt. doc-skills registers no command; its
+  process log has no extension load warning (the only evidence available without a stamp change).
+- Acceptance 6 (three green runs in a row after the pac1 merge) has no runs yet: no PR has run CI since the merge.
+  Upstream flakes unrelated to pac1 (browser-webmcp, browser-tab-worker-startup, job-lifecycle, ovnfs-search) turned
+  6 of the ~12 PR runs in this run red. Three in a row needs those too, or a decision to count the pac1 job only.
