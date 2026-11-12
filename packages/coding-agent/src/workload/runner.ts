@@ -92,17 +92,14 @@ async function createWorkloadSession(
 	const [settings, authStorage] = await Promise.all([Settings.init({ cwd }), discoverAuthStorage()]);
 	const modelRegistry = new ModelRegistry(authStorage);
 	await modelRegistry.refresh();
-	// The parent never prompts a model itself, but it still needs a resolvable
-	// active model: that is what a step inherits when it names neither a `model`
-	// nor an agent whose definition does. `resolveModelFromSettings` walks the
-	// configured roles exactly as an interactive session's startup does.
+	// The parent never prompts a model itself. It is only the fallback for a
+	// prompt step that names neither a `model` nor an agent whose definition
+	// does, so a missing parent model must not fail a run whose steps all name
+	// their own model: such a fallback step fails at its own spawn instead.
+	// `resolveModelFromSettings` walks the configured roles exactly as an
+	// interactive session's startup does.
 	const activeModel = resolveModelFromSettings({ settings, availableModels: modelRegistry.getAvailable() });
-	if (!activeModel) {
-		throw new Error(
-			"No model with usable credentials. Run `omp models` to check discovery, or `omp login` to add a provider.",
-		);
-	}
-	const modelSelector = formatModelString(activeModel);
+	const modelSelector = activeModel ? formatModelString(activeModel) : undefined;
 	const sessionManager = SessionManager.create(cwd);
 	await sessionManager.setSessionName(`Workload ${spec.name}`, "auto");
 	sessionManager.appendCustomEntry("workload", { status: "running", name: spec.name, source: spec.sourcePath });

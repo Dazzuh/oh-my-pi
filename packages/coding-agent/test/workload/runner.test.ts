@@ -55,7 +55,10 @@ afterEach(() => {
  * driven without credentials: every spawn goes through the mocked
  * `runStructuredSubagent`, so nothing here is used for inference.
  */
-async function stubSpawnEnvironment(execution: () => StructuredSubagentResult): Promise<{ spawns: () => number }> {
+async function stubSpawnEnvironment(
+	execution: () => StructuredSubagentResult,
+	options: { parentModel?: boolean } = {},
+): Promise<{ spawns: () => number }> {
 	const model = buildModel({
 		id: "workload-test-model",
 		name: "Workload Test Model",
@@ -84,7 +87,9 @@ async function stubSpawnEnvironment(execution: () => StructuredSubagentResult): 
 	vi.spyOn(sdk, "discoverAuthStorage").mockResolvedValue(authStorage);
 	vi.spyOn(ModelRegistry.prototype, "refresh").mockResolvedValue(undefined);
 	vi.spyOn(ModelRegistry.prototype, "getAvailable").mockReturnValue([model]);
-	vi.spyOn(modelResolver, "resolveModelFromSettings").mockReturnValue(model);
+	vi.spyOn(modelResolver, "resolveModelFromSettings").mockReturnValue(
+		options.parentModel === false ? undefined : model,
+	);
 	vi.spyOn(SessionManager, "create").mockReturnValue(sessionManager);
 	const spy = vi.spyOn(structured, "runStructuredSubagent").mockImplementation(async () => execution());
 	return { spawns: () => spy.mock.calls.length };
@@ -363,5 +368,42 @@ steps:
 `);
 		expect(result.status).toBe("ok");
 		expect(result.steps.find(step => step.id === "check")?.error).toBeUndefined();
+	});
+
+	it("runs a prompt step that names its own model when no parent model is usable", async () => {
+		// The parent model is only a fallback; a stale default must not stop a
+		// run whose every prompt step names the model it spawns with.
+		const { spawns } = await stubSpawnEnvironment(
+			() =>
+				({
+					result: {
+						index: 0,
+						id: "ask",
+						agent: "task",
+						agentSource: "bundled",
+						task: "do work",
+						exitCode: 0,
+						output: "done",
+						stderr: "",
+						truncated: false,
+						durationMs: 1,
+					},
+					policy: {},
+					mergeSummary: "",
+					changesApplied: null,
+					artifactsDir: os.tmpdir(),
+					temporaryArtifacts: true,
+				}) as unknown as StructuredSubagentResult,
+			{ parentModel: false },
+		);
+		const result = await run(`
+name: explicit
+steps:
+  - id: ask
+    prompt: "do work"
+    model: openai/gpt-5.4
+`);
+		expect(result.status).toBe("ok");
+		expect(spawns()).toBe(1);
 	});
 });
