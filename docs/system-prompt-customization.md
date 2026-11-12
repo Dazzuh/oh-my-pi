@@ -228,21 +228,23 @@ Only the agent directory is checked (`~/.omp/agent` by default; profile- and XDG
 
 ### Override any bundled prompt file
 
-`SYSTEM_TEMPLATE.md` and `PERSONALITY.md` replace one block each. To replace any other bundled prompt, for example the `<project-context>` footer with its final completion requirements, or a tool's description, put a file with the same path in `prompt-overrides/` under the agent directory:
+`SYSTEM_TEMPLATE.md` and `PERSONALITY.md` replace one block each. To replace any other bundled prompt, for example the `<project-context>` footer with its final completion requirements, or a tool's description, put a file with the same path in `prompt-overrides/` under the agent directory (every session) or under a project's `.omp/` (sessions in that project):
 
 ```text
 ~/.omp/agent/prompt-overrides/system/project-prompt.md   replaces src/prompts/system/project-prompt.md
 ~/.omp/agent/prompt-overrides/tools/bash.md              replaces src/prompts/tools/bash.md (the bash tool description)
+<project>/.omp/prompt-overrides/system/project-prompt.md   replaces it for sessions in <project>, over the user file
 ```
 
 - Paths mirror [`packages/coding-agent/src/prompts/`](../packages/coding-agent/src/prompts/). Start from the bundled file of the tag matching your installed version and edit it.
 - An override is Handlebars source rendered with the same data and helpers as the file it replaces (`{{cwd}}`, `{{#if subagent}}`, `{{#has tools "read"}}`, …). Keep the placeholders and blocks the bundled file uses, or the generated content they insert goes missing.
 - Covered: every bundled tool description and every prompt omp renders as a template, including `system/system-prompt.md` (when no `SYSTEM.md`, `SYSTEM_TEMPLATE.md` or template flag selects another block 0) and `system/project-prompt.md`. Not covered: prompts omp inserts verbatim without rendering them, such as the internal-URL reference texts, personality presets, and some notices and side-task prompts (auto-learn guidance, memory and compression system prompts). Overrides for those files load without error but do not change what the model sees.
-- Overrides apply to the main session and to task subagents.
-- Files are read when a session starts and kept for the process: every request carries the same bytes, so the provider prompt cache keeps hitting. Restart omp after editing them. The override set is process-wide; an SDK host that creates sessions with different agent directories in one process gets the set of the most recently started one.
-- A file whose path names no bundled prompt, an empty file, or one that does not parse as a template is ignored with a warning in the log, and the bundled prompt stays in use.
-- Only the agent directory is checked (`~/.omp/agent` by default; profile- and `PI_CODING_AGENT_DIR`-aware). There is no project-level lookup.
-- Without the directory, the prompt and tool descriptions are byte-identical to an omp without this feature.
+- Per file, a project override beats a user override, which beats the bundled prompt. The project directory is the nearest non-empty `.omp/` from the working directory up to the repository root (or home), the same lookup as project `SYSTEM.md`.
+- The set is chosen when the main session starts. Its task subagents render with the same files, wherever they run (including another directory through `task.cwd`); templates can branch on `{{#if subagent}}`.
+- Files are read when the main session starts and kept for the process: every request carries the same bytes, so the provider prompt cache keeps hitting. Restart omp after editing them. The override set is process-wide; an SDK host that creates top-level sessions with different agent directories or projects in one process gets the set of the most recently started one.
+- A file whose path names no bundled prompt, an empty file, or one that does not parse as a template is ignored with a warning in the log, and the next layer down (user file, then bundled prompt) stays in use.
+- The user layer follows the agent directory (`~/.omp/agent` by default; profile- and `PI_CODING_AGENT_DIR`-aware). Only `.omp/` project directories are read, not `.claude/` or other config bases.
+- Without either directory, the prompt and tool descriptions are byte-identical to an omp without this feature.
 
 ### Customize automatic session titles
 
@@ -284,7 +286,7 @@ The CLI flags and files do **not** set `systemPrompt`: they select the plain/tem
 | Replace every provider-facing system block                                 | `CreateAgentSessionOptions.systemPrompt`                                                                               |
 | Customize automatic session titles                                         | `TITLE_SYSTEM.md`                                                                                                      |
 | Replace the personality block while keeping the rest of the default prompt | `PERSONALITY.md`                                                                                                       |
-| Replace the footer, a tool description, or any other bundled prompt file      | `prompt-overrides/<path under src/prompts>` in the agent directory |
+| Replace the footer, a tool description, or any other bundled prompt file      | `prompt-overrides/<path under src/prompts>` in the agent directory or a project's `.omp/` |
 | Use `{{cwd}}` or other internal variables in a plain user file             | Not supported; plain user content is inserted verbatim                                                                 |
 | Include live settings, tool inventory, or xdev docs in a template          | Reference the corresponding Handlebars fields, such as `{{eagerTasks}}`, `{{toolInventory}}`, and `{{xdevDocs}}`       |
 | Inherit selected default-template sections automatically                   | Not supported; a template must reference the data it needs                                                             |

@@ -4506,18 +4506,30 @@ export interface SubagentRunRequest {
 	readonly options: ExecutorOptions;
 	/** Root compaction thresholds tagged on `options.settings` (a symbol property, which never crosses). */
 	readonly rootThresholds: RootCompactionThresholds | undefined;
+	/** The caller's prompt overrides (module state, which a worker does not share). */
+	readonly promptOverrides: ReadonlyMap<string, string>;
 }
 
 /** Package `options` for a worker, carrying what the settings' symbol tag holds explicitly. */
 export function subagentRunRequest(options: ExecutorOptions): SubagentRunRequest {
 	const settings: SubagentChainSettings | undefined = options.settings;
-	return { options, rootThresholds: settings?.[kRootCompactionThresholds] };
+	return {
+		options,
+		rootThresholds: settings?.[kRootCompactionThresholds],
+		promptOverrides: prompt.getTemplateOverrides(),
+	};
 }
 
 /** Worker entry of a routed run: re-tag the settings mirror, then run here. */
 export function runSubagentRunRequest(request: SubagentRunRequest): Promise<SingleResult> {
 	const settings: SubagentChainSettings | undefined = request.options.settings;
 	if (settings && request.rootThresholds) settings[kRootCompactionThresholds] = request.rootThresholds;
+	// The worker renders with the caller's set; replacing it clears compiled templates, so only on a change.
+	const current = prompt.getTemplateOverrides();
+	const changed =
+		current.size !== request.promptOverrides.size ||
+		[...request.promptOverrides].some(([bundled, text]) => current.get(bundled) !== text);
+	if (changed) prompt.setTemplateOverrides(request.promptOverrides);
 	return runSubprocessOnThisThread(request.options);
 }
 
