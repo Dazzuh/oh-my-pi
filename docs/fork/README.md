@@ -53,9 +53,13 @@ each upstream version and counts up with each fork release built on it.
 
 1. Checks the tag: `<upstream version>` must equal `packages/coding-agent/package.json`'s version, and the tagged
    commit must be on `main`.
-2. Builds the Windows x64 native addon from this repository's `crates/` with Cargo (profile `ci`, x86-64-v2
-   baseline, static CRT), the same ISA floor as upstream's `win32-x64-baseline` addon. Fork Rust changes are in
-   the binary.
+2. Gets the Windows x64 native addon, prebuilt unless changed. If the fork's native inputs (`crates/`,
+   `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `packages/natives/`, `BUILD.bazel`) are identical to upstream's
+   `v<upstream version>` tag, it uses upstream's published `@oh-my-pi/pi-natives-win32-x64@<upstream version>` from
+   npm. Otherwise it builds the addon from `crates/` with Cargo (profile `ci`, x86-64-v2 baseline, static CRT, the
+   same ISA floor as upstream's `win32-x64-baseline`), restoring a Cargo cache keyed by a hash of those inputs.
+   Caches are saved only by runs on `main`: after a Rust change, run the workflow from `main` ("Run workflow",
+   input: the tag) so later releases reuse the cache.
 3. Sets the version omp reports to `<upstream version>+dz.<n>` (SemVer build metadata: it sorts equal to the
    upstream version, so version checks behave as upstream's), in the build checkout only.
 4. Builds the single-file binary with upstream's `scripts/ci-release-build-binaries.ts` (target `win32-x64`),
