@@ -3,9 +3,14 @@ name: Fork release (Windows x64)
 # Fork-only (Dazzuh/oh-my-pi); see docs/fork/README.md.
 #
 # A `v<upstream version>-dz.<n>` tag on `main` builds the Windows x64
-# single-file binary from this repository (native addon included, built from
-# crates/ with Cargo) and publishes it with its SHA-256 as a GitHub release.
-# Nothing is published anywhere else.
+# single-file binary from this repository and publishes it with its SHA-256 as
+# a GitHub release. Nothing is published anywhere else.
+#
+# Native addon, prebuilt unless changed: when the fork's native inputs equal
+# upstream's `v<upstream version>` tag, the addon is upstream's published
+# `@oh-my-pi/pi-natives-win32-x64@<upstream version>` from npm (what upstream's
+# own PR CI falls back to). When they differ, it is built from crates/ with
+# Cargo, the target dir cached by a hash of those inputs.
 
 on:
    push:
@@ -26,6 +31,8 @@ permissions:
 
 env:
    RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+   # Paths that decide the native addon's bytes; mirror these in the cache key below.
+   NATIVE_INPUTS: crates Cargo.toml Cargo.lock rust-toolchain.toml packages/natives BUILD.bazel
 
 jobs:
    windows_x64:
@@ -61,13 +68,60 @@ jobs:
                 echo "::error::$RELEASE_TAG ($(git rev-parse --short HEAD)) is not on main"
                 exit 1
               fi
+              echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
               echo "version=$upstream+dz.$n" >> "$GITHUB_OUTPUT"
+
+         - name: Compare native inputs with upstream
+           id: natives
+           env:
+              UPSTREAM_VERSION: ${{ steps.tag.outputs.upstream }}
+           run: |
+              set -euo pipefail
+              git fetch --no-tags --depth=1 https://github.com/can1357/oh-my-pi.git "refs/tags/v$UPSTREAM_VERSION:refs/upstream-tag"
+              if git diff --quiet refs/upstream-tag HEAD -- $NATIVE_INPUTS; then
+                echo "Native inputs match upstream v$UPSTREAM_VERSION: using the npm addon."
+                echo "source=npm" >> "$GITHUB_OUTPUT"
+              else
+                echo "Native inputs differ from upstream v$UPSTREAM_VERSION: building with Cargo."
+                git diff --stat refs/upstream-tag HEAD -- $NATIVE_INPUTS
+                echo "source=cargo" >> "$GITHUB_OUTPUT"
+              fi
+
+         # Before bun install, so hashFiles sees no packages/natives/node_modules.
+         - name: Restore Cargo cache
+           if: steps.natives.outputs.source == 'cargo'
+           id: cargo-cache
+           uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+           with:
+              path: |
+                 ~/.cargo/registry
+                 ~/.cargo/git
+                 target
+              key: cargo-win32-x64-baseline-${{ hashFiles('crates/**', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'packages/natives/**', 'BUILD.bazel') }}
+              restore-keys: |
+                 cargo-win32-x64-baseline-
 
          - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
            with:
               bun-version: 1.4.4
 
          - run: bun install --frozen-lockfile
+
+         - name: Fetch native addon (npm, win32-x64-baseline)
+           if: steps.natives.outputs.source == 'npm'
+           env:
+              UPSTREAM_VERSION: ${{ steps.tag.outputs.upstream }}
+           run: |
+              set -euo pipefail
+              tarball="$(npm view "@oh-my-pi/pi-natives-win32-x64@$UPSTREAM_VERSION" dist.tarball)"
+              echo "Fetching $tarball"
+              dest="$PWD/packages/natives/native"
+              # Relative paths: Git Bash's tar reads `D:\...` as a remote host.
+              mkdir -p "$RUNNER_TEMP/npm-addon" && cd "$RUNNER_TEMP/npm-addon"
+              curl -fsSL --retry 3 -o addon.tgz "$tarball"
+              tar -xzf addon.tgz
+              cp package/pi_natives.win32-x64-baseline.node "$dest/"
+              ls -l "$dest"/pi_natives.win32-x64-*.node
 
          # rust-toolchain.toml pins the nightly; rustup installs it on first use.
          # The local Cargo/N-API build names its output after the runner's CPU
@@ -76,6 +130,7 @@ jobs:
          # the addon as upstream's `win32-x64-baseline`, the one addon upstream's
          # win32-x64 release binary embeds.
          - name: Build native addon (Cargo, win32-x64-baseline)
+           if: steps.natives.outputs.source == 'cargo'
            env:
               OMP_NATIVE_CARGO_PROFILE: ci
               RUSTFLAGS: -C target-feature=+crt-static -C target-cpu=x86-64-v2
@@ -88,6 +143,20 @@ jobs:
                 mv -f pi_natives.win32-x64-modern.node pi_natives.win32-x64-baseline.node
               fi
               ls -l pi_natives.win32-x64-*.node
+
+         # Main-scoped caches are readable by every ref (tag runs included);
+         # a cache saved by a tag run is readable only by that tag. Dispatch
+         # from main to refresh the shared cache after a Rust change.
+         - name: Save Cargo cache
+           if: steps.natives.outputs.source == 'cargo' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+           continue-on-error: true
+           uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+           with:
+              path: |
+                 ~/.cargo/registry
+                 ~/.cargo/git
+                 target
+              key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
 
          - name: Set fork version
            env:
