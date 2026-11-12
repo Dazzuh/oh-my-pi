@@ -1,0 +1,35 @@
+name: Fork CI guard
+
+# Fork-only (Dazzuh/oh-my-pi); see docs/fork/README.md.
+#
+# Upstream's ci.yml runs its push/dispatch jobs on `vmon-large/from=omp-ci`,
+# private runners this fork does not have, so those jobs would sit queued until
+# GitHub drops them after 24 h. A push run on `main` also treats a `v[0-9]*` tag
+# at HEAD (our `v<upstream>-dz.<n>` release tags) as an upstream release and
+# would start the npm/GitHub/Homebrew publish chain. Every commit reaching the
+# fork's `main` already passed ci.yml as a pull request on GitHub-hosted
+# runners, so this cancels every CI run that is not a pull_request run, keeping
+# ci.yml byte-identical to upstream.
+
+on:
+   workflow_run:
+      workflows: [CI]
+      types: [requested]
+
+permissions:
+   actions: write
+
+jobs:
+   cancel_non_pr_ci:
+      name: Cancel non-PR CI run
+      if: github.event.workflow_run.event != 'pull_request'
+      runs-on: ubuntu-22.04
+      steps:
+         - name: Cancel run
+           env:
+              GH_TOKEN: ${{ github.token }}
+              RUN_ID: ${{ github.event.workflow_run.id }}
+              RUN_EVENT: ${{ github.event.workflow_run.event }}
+           run: |
+              echo "Cancelling CI run $RUN_ID (event: $RUN_EVENT); the fork runs CI on pull requests only."
+              gh run cancel "$RUN_ID" -R "$GITHUB_REPOSITORY"
