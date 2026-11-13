@@ -270,7 +270,9 @@ export function createAdvisorMessageCard(
 		});
 		return card(
 			{
-				role: "omp.advisor",
+				// Tern 0.9.18's chat reader never draws a top-level `omp.advisor` node; marks exist
+				// only for the user, so they take their own role and stay visible there.
+				role: marks ? "omp.advisor.mark" : "omp.advisor",
 				tone: look.tone,
 				collapsible: notes.length > COLLAPSED_NOTES,
 				collapsed: notes.length > COLLAPSED_NOTES ? !isExpanded : undefined,

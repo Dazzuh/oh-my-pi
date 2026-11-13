@@ -403,6 +403,10 @@ export class AdvisorRuntime {
 	get halted(): boolean {
 		return this.#halted;
 	}
+	/** True while the drain loop is collecting or running a review; its turn-end hooks still follow. */
+	get busy(): boolean {
+		return this.#busy;
+	}
 	/**
 	 * True once the runtime has completed at least one review and has no queued
 	 * or in-flight review work left, or has hard-stopped (halted/quota-paused/

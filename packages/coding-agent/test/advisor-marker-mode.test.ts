@@ -50,14 +50,23 @@ describe("advisor marker mode", () => {
 	function createSession(
 		advisor: AdvisorConfig,
 		primaryResponses: MockResponse[] = [{ content: ["All tests pass."] }, { content: ["Next step done."] }],
+		options: { advisorNotes?: string[]; syncBacklog?: string } = {},
 	) {
 		const primaryMock = createMockModel({ provider: "anthropic", responses: primaryResponses });
 		const advisorMock = createMockModel({
 			provider: "anthropic",
-			responses: [{ content: [{ type: "toolCall", name: "advise", arguments: { note: NOTE, severity: "nit" } }] }],
+			responses: [
+				{
+					content: (options.advisorNotes ?? [NOTE]).map(note => ({
+						type: "toolCall" as const,
+						name: "advise",
+						arguments: { note, severity: "nit" },
+					})),
+				},
+			],
 		});
 		const settings = Settings.isolated({
-			"advisor.syncBacklog": "1",
+			"advisor.syncBacklog": options.syncBacklog ?? "1",
 			"compaction.enabled": false,
 			"retry.enabled": false,
 			"todo.enabled": false,
@@ -138,6 +147,28 @@ describe("advisor marker mode", () => {
 		await live.prompt("run the tests").catch(() => undefined);
 		expect(await live.waitForAdvisorCatchup(2_000)).toBe(true);
 		expect(customTypesEnded(events)).toEqual(["advisor-mark"]);
+	});
+
+	it("records one review's marks as one card when the review runs after the primary went idle", async () => {
+		const notes = [
+			'"All tests pass." No test run.',
+			'"Coverage is 90%." No coverage report.',
+			'"CI is green." No CI run.',
+		];
+		const { session: live, events } = createSession(
+			{ name: "claims", mode: "mark", maxNotesPerUpdate: 4 },
+			undefined,
+			// syncBacklog off: the terminal boundary does not wait, so the review lands while the primary is idle.
+			{ advisorNotes: notes, syncBacklog: "off" },
+		);
+
+		await live.prompt("run the tests");
+		expect(await live.waitForAdvisorCatchup(2_000)).toBe(true);
+		expect(customTypesEnded(events)).toEqual(["advisor-mark"]);
+		const mark = live.agent.state.messages.find(m => m.role === "custom" && m.customType === "advisor-mark");
+		expect(mark?.role === "custom" ? mark.details : undefined).toMatchObject({
+			notes: notes.map(note => ({ note, advisor: "claims" })),
+		});
 	});
 
 	it("uses the roster entry's own base prompt and advise description", async () => {
