@@ -1,77 +1,84 @@
-# Dazzuh/oh-my-pi: Darryn's omp fork
+# Fork maintenance
 
-This is a public GitHub fork of [can1357/oh-my-pi](https://github.com/can1357/oh-my-pi) (omp). It exists so Darryn
-can run his own omp: "clone our own local omp instead. I don't want to be restricted to descisions someone else
-made." It builds a Windows binary from this repository, and that binary is the `omp` he runs every day.
+This repository is a fork of [can1357/oh-my-pi](https://github.com/can1357/oh-my-pi). It ships Windows x64 builds of
+upstream releases with a small stack of fork commits on top.
 
-## The two conditions
+## Rules
 
-Every commit in this fork follows these, in Darryn's words (2026-11-12):
+1. Every change meets upstream's PR standards (`CONTRIBUTING.md`): one logical change per PR, tests, `bun check`, and
+   the changed behavior exercised end to end.
+2. Every change is generic. Nothing that works only on one machine or setup; behavior changes are off by default.
+   Setup-specific code lives outside this repository.
 
-1. "make sure that the fork follows the same guidance a normal pr would". Upstream's `CONTRIBUTING.md` applies:
-   one logical change per PR, tests, `bun check`, and the changed behavior exercised end to end.
-2. "none of our personal edits should break omp, and nothing in the omp fork that only works on my setup". omp
-   code here stays generic, and off by default where it changes behavior. Anything personal (his paths, prompts,
-   config, the installer for his machine) lives in `agent-kit`, not here.
-
-Fork-maintenance files are the exception to "upstream code only": `.github/workflows/fork-*.yml` and `docs/fork/`.
-They don't change omp.
+Fork-maintenance files (`.github/workflows/fork-*.yml`, `docs/fork/`) don't change omp. Commit messages, PR text and
+release notes describe the change itself and cite no private tracker ids.
 
 ## Branches
 
-| Branch / ref | What it is |
+| Ref | Contents |
 |---|---|
-| `main` | An upstream release tag (now `v18.19.0`), plus fork-maintenance commits, plus our merged feature PRs. |
-| PR branches | One logical change each, opened against `main`. Nothing lands on `main` without a PR. |
-| `upstream` remote | `https://github.com/can1357/oh-my-pi.git`. Upstream's own `main` is never merged directly. |
-
-Moving to a new upstream release: rebase `main`'s fork commits onto the new upstream tag, through a PR, so CI runs
-on the result.
+| `main` | An upstream release tag plus the fork commits. Changes land only through PRs. |
+| PR branches | One logical change each, against `main`. |
+| `upstream` remote | `https://github.com/can1357/oh-my-pi.git`. Upstream's `main` is never merged. |
+| `fork-archive/main-before-<tag>` | `main` as it was before the update to `<tag>`. |
 
 ## CI
 
-- **Pull requests into `main`** run upstream's `ci.yml` unchanged. On `pull_request` every job uses GitHub-hosted
-  `ubuntu-22.04` runners (free on a public repo). Rust isn't built on PRs: the jobs use main's cached linux-x64
-  addon or the latest published `@oh-my-pi/pi-natives-linux-x64` (`docs/natives-build-release-debugging.md`).
-  `ci.yml` only triggers on its path list (`packages/**`, `crates/**`, `scripts/**`, `.github/**`, lockfiles…);
-  a docs-only PR gets no CI run.
-- **Pushes to `main` and manual dispatches of CI** are cancelled within seconds by `fork-ci-guard.yml`. Upstream
-  runs those jobs on Can's private `vmon-large/from=omp-ci` runners, which this fork doesn't have, and a push run
-  treats a `v*` tag at `main` HEAD as an upstream release that publishes to npm, GitHub and Homebrew. Every commit
-  on `main` already passed CI as a PR.
-- **`OMP Nix` (`nix.yml`)** is disabled in the repository's Actions settings (`gh workflow disable "OMP Nix"`). It
-  runs on every `v*` tag and a daily cron and builds Linux packages we don't use.
-- **`Warm bun store cache` (`bun-cache-warm.yml`)** stays on: it runs on GitHub-hosted runners when `bun.lock`
-  changes on `main` and fills the bun store cache that PR jobs restore.
+- **PRs into `main`** run upstream's `ci.yml` unchanged on GitHub-hosted runners. It triggers only on its path list,
+  so docs-only PRs get no run.
+- **`fork-ci-guard.yml`** cancels CI runs from pushes to `main` and manual dispatches: upstream runs those on private
+  runners, and a push run treats a `v*` tag at `HEAD` as an upstream release to publish. Every commit on `main` already
+  passed CI as a PR.
+- **`Fork Windows build`** (`fork-build-windows.yml`) builds the Windows binary of every non-docs PR (version
+  `<package>+dz.pr<N>`) and uploads it as the artifact `omp-windows-x64`.
+- **`OMP Nix`** is disabled in the Actions settings. **`Warm bun store cache`** stays on.
 
 ## Releases
 
-Tag `main` with `v<upstream version>-dz.<n>`, for example `v18.19.0-dz.1`, and push the tag. `n` starts at 1 for
-each upstream version and counts up with each fork release built on it.
+A tag `v<upstream version>-dz.<n>` on `main` (`n` counts from 1 per upstream version) starts
+`fork-release-windows.yml`. It checks that the version matches `packages/coding-agent/package.json` and that the
+commit is on `main`, then builds with `fork-build-windows.yml`:
 
-`fork-release-windows.yml` then, on a GitHub-hosted `windows-2025` runner:
+- Native addon: upstream's published `@oh-my-pi/pi-natives-win32-x64@<upstream version>` when the native inputs
+  (`crates/`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `packages/natives/`, `BUILD.bazel`) match the
+  upstream tag; otherwise a Cargo build (profile `ci`, x86-64-v2 baseline), cached from runs on `main`.
+- Version `<upstream version>+dz.<n>`, single-file binary via `scripts/ci-release-build-binaries.ts`, then
+  `omp --version` and `omp --smoke-test` on the runner.
 
-1. Checks the tag: `<upstream version>` must equal `packages/coding-agent/package.json`'s version, and the tagged
-   commit must be on `main`.
-2. Gets the Windows x64 native addon, prebuilt unless changed. If the fork's native inputs (`crates/`,
-   `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `packages/natives/`, `BUILD.bazel`) are identical to upstream's
-   `v<upstream version>` tag, it uses upstream's published `@oh-my-pi/pi-natives-win32-x64@<upstream version>` from
-   npm. Otherwise it builds the addon from `crates/` with Cargo (profile `ci`, x86-64-v2 baseline, static CRT, the
-   same ISA floor as upstream's `win32-x64-baseline`), restoring a Cargo cache keyed by a hash of those inputs.
-   Caches are saved only by runs on `main`: after a Rust change, run the workflow from `main` ("Run workflow",
-   input: the tag) so later releases reuse the cache.
-3. Sets the version omp reports to `<upstream version>+dz.<n>` (SemVer build metadata: it sorts equal to the
-   upstream version, so version checks behave as upstream's), in the build checkout only.
-4. Builds the single-file binary with upstream's `scripts/ci-release-build-binaries.ts` (target `win32-x64`),
-   which embeds that addon.
-5. Runs `omp --version` and `omp --smoke-test` on the runner.
-6. Publishes a GitHub release for the tag with `omp-windows-x64.exe` and `omp-windows-x64.exe.sha256`.
+The release job publishes a GitHub release with `omp-windows-x64.exe` and its `.sha256`, nowhere else. "Run workflow"
+rebuilds an existing tag; `dry_run` builds without publishing.
 
-It never publishes to npm, Homebrew or anywhere else. Re-run it for an existing tag with the workflow's
-"Run workflow" button (input: the tag).
+## Updater
 
-Installing a release on Darryn's machine is `agent-kit`'s job, not this repository's.
+A scheduled job outside this repository (`omp-dz-update.ps1`) keeps `main` on the newest upstream release. Each hourly
+pass:
 
-## Reports
+1. Compares the newest upstream `vX.Y.Z` tag with the tag `main` is built on.
+2. Holds while an open fork PR (other than `fork-update/*`), a branch ahead of `main` without a merged or closed PR,
+   or an in-progress run that owns a fork branch exists. Once released, it goes straight to the newest tag.
+3. Rebases the fork commits onto the new tag, regenerates generated files into the commit that owns them (the bundled
+   prompt table), and pushes `fork-update/<tag>` with a PR into `main`. The PR head merges the rebased stack with the
+   current `main` and keeps the stack's tree, so the PR's checks start.
+4. Waits for `CI` and `Fork Windows build` (failed jobs rerun up to twice), then checks the maintainer's extensions
+   against the PR's Windows build.
+5. All green: tags the old `main` as `fork-archive/main-before-<tag>`, force-pushes `main` to the rebased stack,
+   closes the PR, tags `<tag>-dz.<n>`, checks the release binary the same way and installs it.
+6. A rebase conflict or a red check installs nothing and opens a fix run for the branch. A fix run abandoned without
+   a fix skips that tag until a newer one.
 
-`docs/fork/reports/` holds one log per setup run.
+**Known hosted-runner failures.** Some upstream tests fail on GitHub-hosted runners but not on upstream's own. The
+updater keeps a list of them by file and test name. If, after the reruns, `Fork Windows build` passed and every failed
+`CI` job failed only on listed tests, those tests run locally against the rebased source. A test that passes counts
+as passed. A test that fails is run on the installed release's source: failing there too, it is not a regression and
+counts as passed; passing there, the check is red. The release notice names every such test and its outcome. Tests a
+fork commit adds or touches are never listed, and unlisted failures are always red.
+
+**Pause.** `omp-dz-update.ps1 pause` disables the job; `resume` re-enables it. `pass -DryRun` rebases locally and
+pushes nothing.
+
+**Roll back.**
+
+- Installed binary: `omp-dz.ps1 rollback` restores the previous release. Pause the updater first.
+- `main`: `git push --force-with-lease origin fork-archive/main-before-<tag>^{commit}:refs/heads/main`.
+- Local checkouts of `main` diverge after each update: `git reset --hard origin/main` on a clean `main`, or
+  `git rebase --onto origin/main <old main> <branch>`.
