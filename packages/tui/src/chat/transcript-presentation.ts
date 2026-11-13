@@ -446,7 +446,7 @@ function blockHead(block: WrappedTranscriptBlock): BlockHead {
 			const tally = `${countOf(notes.length, "note")}${blockers > 0 ? ` · ${countOf(blockers, "blocker")}` : ""}`;
 			return message.customType === "advisor"
 				? plainHead("advisor", "omp.advisor", "Advisor", tally)
-				: plainHead("advisor", "omp.advisor", "Marks", `${tally} · not sent to agent`);
+				: plainHead("advisor", "omp.advisor.mark", "Marks", `${tally} · not sent to agent`);
 		}
 		case SKILL_PROMPT_MESSAGE_TYPE: {
 			const name = (message.details as SkillPromptDetails | undefined)?.name?.trim() || "unknown";

@@ -948,6 +948,11 @@ describe("native transcript", () => {
 			container.addChild(
 				createAdvisorMessageCard({ notes: [{ note: "Check the cache", severity: "blocker" }] }, () => false, theme),
 			);
+			container.addChild(
+				createAdvisorMessageCard({ notes: [{ note: "Unsupported claim", severity: "nit" }] }, () => false, theme, {
+					marks: true,
+				}),
+			);
 			h.tui.addChild(container);
 		});
 
@@ -981,6 +986,8 @@ describe("native transcript", () => {
 				"omp.marker.cache-miss",
 				"omp.status-block",
 				"omp.advisor",
+				// Not `omp.advisor`: Tern 0.9.18's chat reader draws no top-level node with that role.
+				"omp.advisor.mark",
 			]),
 		);
 		expect(h.errors).toEqual([]);

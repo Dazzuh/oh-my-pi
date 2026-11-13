@@ -1679,6 +1679,8 @@ export class SessionAdvisors {
 					// Commit the delivered batch so retries of a failed turn stay deduped
 					// while this successful turn's context is persisted once (issue #9553).
 					advisorRef.recorder.commitTurn();
+					// This review's marks are complete: record them as one card.
+					if (advisorRef.marks) this.#flushSettledMarks();
 					// A completed turn ended the provider-block episode — start the next
 					// block's bounded wait budget fresh.
 					this.#resetRecoveryBudgets(advisorRef);
@@ -1693,6 +1695,7 @@ export class SessionAdvisors {
 				},
 				onTurnAbandoned: () => {
 					advisorRef.recorder.abandonTurn();
+					if (advisorRef.marks) this.#flushSettledMarks();
 					// The dropped batch ends this episode; the next batch gets a fresh budget.
 					this.#resetRecoveryBudgets(advisorRef);
 				},
@@ -1796,13 +1799,18 @@ export class SessionAdvisors {
 	 * Record one note from a `mode: mark` advisor for the user. A mark never
 	 * steers, triggers a turn or enters the primary's context
 	 * (`convertToLlm` drops {@link ADVISOR_MARK_MESSAGE_TYPE}); it only needs a
-	 * safe moment to be appended. While the primary loop runs a non-final turn,
-	 * marks wait for the terminal boundary (`onPrimaryTurnEnd`); during that
-	 * boundary window they merge into one card when it closes; otherwise
-	 * (idle, or unwinding a finished run) they are recorded now.
+	 * safe moment to be appended, and one advisor review's marks belong in one
+	 * card. So every mark waits: for the end of the advisor turn that raised it
+	 * ({@link #flushSettledMarks} from `onTurnSuccess`/`onTurnAbandoned`), for
+	 * the terminal boundary while the primary loop runs a non-final turn
+	 * (`onPrimaryTurnEnd`), or for the close of an open boundary window.
 	 */
 	#routeMark(advisor: ActiveAdvisor, note: string, severity?: AdvisorSeverity, turn?: number): void {
 		this.#pendingMarks.push({ note, severity, advisor: advisor.name, turn });
+	}
+
+	/** Record held marks unless a running primary turn or an open boundary window still owns them. */
+	#flushSettledMarks(): void {
 		if (this.#advisorTerminalBoundaryOpen) return;
 		if (this.#host.agent.state.isStreaming && !this.#terminalUnwindActive) return;
 		this.#flushMarks();
@@ -2811,11 +2819,14 @@ export class SessionAdvisors {
 	 * Record marks still held when the session settles. A run that ends by
 	 * abort or error never reaches the terminal boundary that normally flushes
 	 * them (both the advise tool's in-progress deferrals and the mark buffer),
-	 * and they must not wait for the next run's boundary.
+	 * and they must not wait for the next run's boundary. A marker still
+	 * reviewing keeps them: its turn end records them with the rest of its notes.
 	 */
 	flushPendingMarks(): void {
 		if (this.#host.isDisposed() || this.#host.agent.state.isStreaming) return;
-		for (const advisor of this.#advisors) if (advisor.marks) advisor.adviseTool.flushDeferredNotes();
+		const markers = this.#advisors.filter(advisor => advisor.marks);
+		for (const advisor of markers) advisor.adviseTool.flushDeferredNotes();
+		if (markers.some(advisor => advisor.runtime.busy)) return;
 		this.#flushMarks();
 	}
 
