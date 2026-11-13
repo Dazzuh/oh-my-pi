@@ -599,10 +599,17 @@ export function withTemplateOverrides<T>(overrides: () => ReadonlyMap<string, st
 	return scopedTemplateOverrides.run(overrides, work);
 }
 
+/**
+ * The set renders use here: the innermost {@link withTemplateOverrides} frame's, else the registered one. Callers
+ * that keep data alongside a set can look it up by this identity.
+ */
+export function currentTemplateOverrides(): ReadonlyMap<string, string> {
+	return scopedTemplateOverrides.getStore()?.() ?? templateOverrides;
+}
+
 /** The replacement for a bundled prompt text in the current set, or the text itself. */
 export function overridden(text: string): string {
-	const overrides = scopedTemplateOverrides.getStore()?.() ?? templateOverrides;
-	return overrides.get(text) ?? text;
+	return currentTemplateOverrides().get(text) ?? text;
 }
 
 // Bounded: some callers compile template text that already embeds user arguments.
