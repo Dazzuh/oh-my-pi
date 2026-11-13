@@ -367,7 +367,9 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 
 	constructor(private readonly session: ToolSession) {}
 
-	readonly description = prompt.render(askDescription);
+	get description(): string {
+		return prompt.render(askDescription);
+	}
 
 	static createIf(session: ToolSession): AskTool | null {
 		return (session.canPromptUser ?? session.hasUI) || session.advertiseHeadlessAsk ? new AskTool(session) : null;

@@ -176,7 +176,9 @@ export class WaitTool implements AgentTool<typeof waitSchema, CoordinationDetail
 	readonly name = "wait";
 	readonly label = "Wait";
 	readonly summary = "Wait for the next result of a background job or service you started, or a reply you asked for";
-	readonly description = prompt.render(waitDescription);
+	get description(): string {
+		return prompt.render(waitDescription);
+	}
 	readonly parameters = waitSchema;
 	readonly strict = true;
 	readonly interruptible = true;

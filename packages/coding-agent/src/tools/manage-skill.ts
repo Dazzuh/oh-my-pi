@@ -42,7 +42,9 @@ export class ManageSkillTool implements AgentTool<typeof manageSkillSchema> {
 	readonly name = "manage_skill";
 	readonly approval = "write" as const;
 	readonly label = "Manage Skill";
-	readonly description = prompt.overridden(manageSkillDescription);
+	get description(): string {
+		return prompt.overridden(manageSkillDescription);
+	}
 	readonly parameters = manageSkillSchema;
 	readonly strict = true;
 	readonly loadMode = "essential" as const;

@@ -675,6 +675,13 @@ export class Agent {
 	logContext: Readonly<Record<string, unknown>> | undefined;
 
 	/**
+	 * Wraps every run of this agent (`prompt`, `continue`). The owning session
+	 * installs async-local state there that its prompts and tools read while
+	 * requests are built, such as the prompt overrides for its model.
+	 */
+	runScope: (<T>(work: () => T) => T) | undefined;
+
+	/**
 	 * Static metadata forwarded to every API request when no resolver is installed
 	 * (e.g. `metadata.user_id` for Anthropic session attribution). Setting this
 	 * clears any installed resolver.
@@ -1888,9 +1895,11 @@ export class Agent {
 		}
 	}
 
-	/** Run `fn` with {@link logContext} on every record it logs. */
+	/** Run `fn` inside {@link runScope}, with {@link logContext} on every record it logs. */
 	#inLogContext<T>(fn: () => T): T {
-		return this.logContext ? logger.withContext(this.logContext, fn) : fn();
+		const logContext = this.logContext;
+		const logged = logContext ? () => logger.withContext(logContext, fn) : fn;
+		return this.runScope ? this.runScope(logged) : logged();
 	}
 
 	/**

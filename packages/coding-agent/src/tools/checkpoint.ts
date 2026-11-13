@@ -55,15 +55,15 @@ export class CheckpointTool implements AgentTool<typeof checkpointSchema, Checkp
 	readonly approval = "read" as const;
 	readonly label = "Checkpoint";
 	readonly summary = "Create a git-based checkpoint to save and restore session state";
-	readonly description: string;
+	get description(): string {
+		return prompt.render(checkpointDescription);
+	}
 	readonly parameters = checkpointSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
 	readonly intent = (args: Partial<CheckpointParams>) => (args.goal ? `checkpointing: ${args.goal}` : "checkpointing");
 
-	constructor(private readonly session: ToolSession) {
-		this.description = prompt.render(checkpointDescription);
-	}
+	constructor(private readonly session: ToolSession) {}
 
 	static createIf(session: ToolSession): CheckpointTool | null {
 		return new CheckpointTool(session);
@@ -91,15 +91,15 @@ export class RewindTool implements AgentTool<typeof rewindSchema, RewindToolDeta
 	readonly approval = "read" as const;
 	readonly label = "Rewind";
 	readonly summary = "Rewind to a previously created checkpoint";
-	readonly description: string;
+	get description(): string {
+		return prompt.render(rewindDescription);
+	}
 	readonly parameters = rewindSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
 	readonly intent = (): string => "rewinding";
 
-	constructor(private readonly session: ToolSession) {
-		this.description = prompt.render(rewindDescription);
-	}
+	constructor(private readonly session: ToolSession) {}
 
 	static createIf(session: ToolSession): RewindTool | null {
 		return new RewindTool(session);

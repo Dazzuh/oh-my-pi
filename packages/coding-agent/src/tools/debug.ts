@@ -557,7 +557,9 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 	};
 	readonly label = "Debug";
 	readonly summary = "Debug a running process with DAP (debugger adapter protocol)";
-	readonly description: string;
+	get description(): string {
+		return prompt.render(debugDescription);
+	}
 	readonly parameters = debugSchema;
 	readonly strict = true;
 
@@ -579,9 +581,7 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 	readonly concurrency = "exclusive";
 	readonly loadMode = "discoverable";
 
-	constructor(private readonly session: ToolSession) {
-		this.description = prompt.render(debugDescription);
-	}
+	constructor(private readonly session: ToolSession) {}
 
 	static createIf(session: ToolSession): DebugTool | null {
 		return cfgDebugEnabled.get(session.settings) ? new DebugTool(session) : null;

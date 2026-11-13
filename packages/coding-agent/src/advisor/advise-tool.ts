@@ -205,7 +205,9 @@ const ADVISOR_ACK_SUPPRESSED: Record<AdvisorSuppressionReason, string> = {
 export class AdviseTool implements AgentTool<typeof adviseSchema, AdviseDetails> {
 	readonly name = "advise";
 	readonly label = "Advise";
-	readonly description = prompt.overridden(adviseDescription);
+	get description(): string {
+		return prompt.overridden(adviseDescription);
+	}
 	readonly parameters = adviseSchema;
 	readonly intent = "omit" as const;
 	/**

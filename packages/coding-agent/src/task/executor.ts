@@ -49,6 +49,7 @@ import {
 	resolveModelOverride,
 	resolveModelOverrideWithAuthFallback,
 } from "../config/model-resolver";
+import { getPromptOverrideSet, installPromptOverrideSet, type PromptOverrideSet } from "../config/prompt-overrides";
 import type { PromptTemplate } from "../config/prompt-templates";
 import {
 	buildServiceTierByFamily,
@@ -4534,8 +4535,8 @@ export interface SubagentRunRequest {
 	readonly options: ExecutorOptions;
 	/** Root compaction thresholds tagged on `options.settings` (a symbol property, which never crosses). */
 	readonly rootThresholds: RootCompactionThresholds | undefined;
-	/** The caller's prompt overrides (module state, which a worker does not share). */
-	readonly promptOverrides: ReadonlyMap<string, string>;
+	/** The caller's prompt overrides, every model's (module state, which a worker does not share). */
+	readonly promptOverrides: PromptOverrideSet;
 }
 
 /** Package `options` for a worker, carrying what the settings' symbol tag holds explicitly. */
@@ -4544,7 +4545,7 @@ export function subagentRunRequest(options: ExecutorOptions): SubagentRunRequest
 	return {
 		options,
 		rootThresholds: settings?.[kRootCompactionThresholds],
-		promptOverrides: prompt.getTemplateOverrides(),
+		promptOverrides: getPromptOverrideSet(),
 	};
 }
 
@@ -4552,12 +4553,8 @@ export function subagentRunRequest(options: ExecutorOptions): SubagentRunRequest
 export function runSubagentRunRequest(request: SubagentRunRequest): Promise<SingleResult> {
 	const settings: SubagentChainSettings | undefined = request.options.settings;
 	if (settings && request.rootThresholds) settings[kRootCompactionThresholds] = request.rootThresholds;
-	// The worker renders with the caller's set; replacing it clears compiled templates, so only on a change.
-	const current = prompt.getTemplateOverrides();
-	const changed =
-		current.size !== request.promptOverrides.size ||
-		[...request.promptOverrides].some(([bundled, text]) => current.get(bundled) !== text);
-	if (changed) prompt.setTemplateOverrides(request.promptOverrides);
+	// The worker renders with the caller's set; the child session picks its model's files from it.
+	installPromptOverrideSet(request.promptOverrides);
 	return runSubprocessOnThisThread(request.options);
 }
 

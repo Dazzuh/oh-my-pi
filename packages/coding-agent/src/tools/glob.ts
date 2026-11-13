@@ -155,9 +155,11 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 		);
 		// Every render input is a boolean; pack them so repeat reads skip the template render.
 		const key = (hasFind ? 1 : 0) | (eagerDelegation ? 2 : 0) | (scoutAvailable ? 4 : 0);
-		if (key !== this.#descriptionKey) {
+		const source = prompt.overridden(globDescription);
+		if (key !== this.#descriptionKey || source !== this.#descriptionSource) {
 			this.#description = prompt.render(globDescription, { hasFind, eagerDelegation, scoutAvailable });
 			this.#descriptionKey = key;
+			this.#descriptionSource = source;
 		}
 		return this.#description;
 	}
@@ -172,6 +174,8 @@ export class GlobTool implements AgentTool<typeof findSchema, GlobToolDetails> {
 	readonly #timeoutMs: number;
 	#descriptionKey = -1;
 	#description = "";
+	// Template text the cached description was rendered from: a session's model can select another override.
+	#descriptionSource = "";
 
 	constructor(
 		private readonly session: ToolSession,

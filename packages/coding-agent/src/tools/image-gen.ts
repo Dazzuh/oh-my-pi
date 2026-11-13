@@ -249,7 +249,9 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 	label: "GenerateImage",
 	strict: false,
 	approval: "write",
-	description: prompt.render(imageGenDescription),
+	get description() {
+		return prompt.render(imageGenDescription);
+	},
 	parameters: imageGenSchema,
 	async execute(_toolCallId, params, _onUpdate, ctx, signal) {
 		return untilAborted(signal, async () => {

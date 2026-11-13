@@ -615,7 +615,8 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 			(hasFind ? 4 : 0) |
 			(eagerDelegation ? 8 : 0) |
 			(scoutAvailable ? 16 : 0);
-		if (key !== this.#descriptionKey) {
+		const source = prompt.overridden(grepDescription);
+		if (key !== this.#descriptionKey || source !== this.#descriptionSource) {
 			this.#description = prompt.render(grepDescription, {
 				IS_HL_MODE: isHlMode,
 				IS_LINE_NUMBER_MODE: isLineNumberMode,
@@ -624,6 +625,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 				scoutAvailable,
 			});
 			this.#descriptionKey = key;
+			this.#descriptionSource = source;
 		}
 		return this.#description;
 	}
@@ -635,6 +637,8 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 	readonly #totalMatchLimit?: number;
 	#descriptionKey = -1;
 	#description = "";
+	// Template text the cached description was rendered from: a session's model can select another override.
+	#descriptionSource = "";
 
 	constructor(
 		private readonly session: ToolSession,
