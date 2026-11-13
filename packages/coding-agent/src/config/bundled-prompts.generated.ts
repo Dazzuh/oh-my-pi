@@ -3,284 +3,286 @@ import p0 from "../prompts/advisor/active-repo-watchdog.md" with { type: "text" 
 import p1 from "../prompts/advisor/advise-tool.md" with { type: "text" };
 import p2 from "../prompts/advisor/boundary-guidance.md" with { type: "text" };
 import p3 from "../prompts/advisor/context-files.md" with { type: "text" };
-import p4 from "../prompts/advisor/memory-context.md" with { type: "text" };
-import p5 from "../prompts/advisor/system.md" with { type: "text" };
-import p6 from "../prompts/agents/frontmatter.md" with { type: "text" };
-import p7 from "../prompts/agents/init.md" with { type: "text" };
-import p8 from "../prompts/agents/model-mention.md" with { type: "text" };
-import p9 from "../prompts/agents/reviewer.md" with { type: "text" };
-import p10 from "../prompts/agents/scout.md" with { type: "text" };
-import p11 from "../prompts/agents/seance.md" with { type: "text" };
-import p12 from "../prompts/agents/security-reviewer.md" with { type: "text" };
-import p13 from "../prompts/agents/task.md" with { type: "text" };
-import p14 from "../prompts/bench/cache-prefix-chunk.md" with { type: "text" };
-import p15 from "../prompts/bench/cache-prefix.md" with { type: "text" };
-import p16 from "../prompts/bench/cache-suffix.md" with { type: "text" };
-import p17 from "../prompts/bench/chat.md" with { type: "text" };
-import p18 from "../prompts/bench/generation.md" with { type: "text" };
-import p19 from "../prompts/bench/prefill-instruction.md" with { type: "text" };
-import p20 from "../prompts/ci-green-request.md" with { type: "text" };
-import p21 from "../prompts/dry-balance-bench.md" with { type: "text" };
-import p22 from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
-import p23 from "../prompts/goals/goal-continuation.md" with { type: "text" };
-import p24 from "../prompts/goals/goal-mode-active.md" with { type: "text" };
-import p25 from "../prompts/goals/goal-mode-context.md" with { type: "text" };
-import p26 from "../prompts/goals/goal-todo-context.md" with { type: "text" };
-import p27 from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
-import p28 from "../prompts/internal-urls/agent.md" with { type: "text" };
-import p29 from "../prompts/internal-urls/artifact.md" with { type: "text" };
-import p30 from "../prompts/internal-urls/cfg.md" with { type: "text" };
-import p31 from "../prompts/internal-urls/history.md" with { type: "text" };
-import p32 from "../prompts/internal-urls/issue-reference.md" with { type: "text" };
-import p33 from "../prompts/internal-urls/issue.md" with { type: "text" };
-import p34 from "../prompts/internal-urls/local.md" with { type: "text" };
-import p35 from "../prompts/internal-urls/mcp.md" with { type: "text" };
-import p36 from "../prompts/internal-urls/memory.md" with { type: "text" };
-import p37 from "../prompts/internal-urls/mr.md" with { type: "text" };
-import p38 from "../prompts/internal-urls/omp.md" with { type: "text" };
-import p39 from "../prompts/internal-urls/out.md" with { type: "text" };
-import p40 from "../prompts/internal-urls/proc-reference.md" with { type: "text" };
-import p41 from "../prompts/internal-urls/proc.md" with { type: "text" };
-import p42 from "../prompts/internal-urls/rule.md" with { type: "text" };
-import p43 from "../prompts/internal-urls/security.md" with { type: "text" };
-import p44 from "../prompts/internal-urls/skill.md" with { type: "text" };
-import p45 from "../prompts/internal-urls/ssh-reference.md" with { type: "text" };
-import p46 from "../prompts/internal-urls/ssh.md" with { type: "text" };
-import p47 from "../prompts/internal-urls/vault.md" with { type: "text" };
-import p48 from "../prompts/memories/consolidation.md" with { type: "text" };
-import p49 from "../prompts/memories/consolidation_system.md" with { type: "text" };
-import p50 from "../prompts/memories/read-path.md" with { type: "text" };
-import p51 from "../prompts/memories/sharpshooter-consolidate-input.md" with { type: "text" };
-import p52 from "../prompts/memories/sharpshooter-consolidate-system.md" with { type: "text" };
-import p53 from "../prompts/memories/sharpshooter-extract-input.md" with { type: "text" };
-import p54 from "../prompts/memories/sharpshooter-extract-system.md" with { type: "text" };
-import p55 from "../prompts/memories/stage_one_input.md" with { type: "text" };
-import p56 from "../prompts/memories/stage_one_system.md" with { type: "text" };
-import p57 from "../prompts/ratchet-kickoff.md" with { type: "text" };
-import p58 from "../prompts/review-custom-request.md" with { type: "text" };
-import p59 from "../prompts/review-headless-request.md" with { type: "text" };
-import p60 from "../prompts/review-request.md" with { type: "text" };
-import p61 from "../prompts/security/scan-coordinator.md" with { type: "text" };
-import p62 from "../prompts/security/scan-request.md" with { type: "text" };
-import p63 from "../prompts/security/validate-request.md" with { type: "text" };
-import p64 from "../prompts/session/launch-completion.md" with { type: "text" };
-import p65 from "../prompts/session/transfer-arrived.md" with { type: "text" };
-import p66 from "../prompts/session/transfer-departed.md" with { type: "text" };
-import p67 from "../prompts/session/transfer-stale-fork.md" with { type: "text" };
-import p68 from "../prompts/skills/autoload.md" with { type: "text" };
-import p69 from "../prompts/skills/compress-description.md" with { type: "text" };
-import p70 from "../prompts/skills/user-invocation.md" with { type: "text" };
-import p71 from "../prompts/spotlight/intent-field.md" with { type: "text" };
-import p72 from "../prompts/spotlight/intent-guidance.md" with { type: "text" };
-import p73 from "../prompts/spotlight/shape-probe.md" with { type: "text" };
-import p74 from "../prompts/spotlight/shape-rule.md" with { type: "text" };
-import p75 from "../prompts/steering/parent-irc.md" with { type: "text" };
-import p76 from "../prompts/steering/user-interjection.md" with { type: "text" };
-import p77 from "../prompts/system/active-repo-context.md" with { type: "text" };
-import p78 from "../prompts/system/agent-creation-architect.md" with { type: "text" };
-import p79 from "../prompts/system/agent-creation-user.md" with { type: "text" };
-import p80 from "../prompts/system/anthropic-usage-wrap-up.md" with { type: "text" };
-import p81 from "../prompts/system/auto-continue.md" with { type: "text" };
-import p82 from "../prompts/system/auto-parallel.md" with { type: "text" };
-import p83 from "../prompts/system/autolearn-capture-refused.md" with { type: "text" };
-import p84 from "../prompts/system/autolearn-guidance-learn.md" with { type: "text" };
-import p85 from "../prompts/system/autolearn-guidance.md" with { type: "text" };
-import p86 from "../prompts/system/autolearn-nudge-autocontinue.md" with { type: "text" };
-import p87 from "../prompts/system/background-tan-dispatch.md" with { type: "text" };
-import p88 from "../prompts/system/browser-relay.md" with { type: "text" };
-import p89 from "../prompts/system/btw-user.md" with { type: "text" };
-import p90 from "../prompts/system/checkpoint-active-notice.md" with { type: "text" };
-import p91 from "../prompts/system/chillax-notice.md" with { type: "text" };
-import p92 from "../prompts/system/commit-message-system.md" with { type: "text" };
-import p93 from "../prompts/system/composer-prediction-user.md" with { type: "text" };
-import p94 from "../prompts/system/computer-use.md" with { type: "text" };
-import p95 from "../prompts/system/context-notes.md" with { type: "text" };
-import p96 from "../prompts/system/custom-system-prompt.md" with { type: "text" };
-import p97 from "../prompts/system/date-cwd-reminder.md" with { type: "text" };
-import p98 from "../prompts/system/eager-task.md" with { type: "text" };
-import p99 from "../prompts/system/eager-todo.md" with { type: "text" };
-import p100 from "../prompts/system/empty-stop-retry.md" with { type: "text" };
-import p101 from "../prompts/system/eval-prelude-notice.md" with { type: "text" };
-import p102 from "../prompts/system/eval-state-context.md" with { type: "text" };
-import p103 from "../prompts/system/experimental-context-notes-reminder.md" with { type: "text" };
-import p104 from "../prompts/system/experimental-context-rollover.md" with { type: "text" };
-import p105 from "../prompts/system/gemini-tool-call-reminder.md" with { type: "text" };
-import p106 from "../prompts/system/hindsight-instructions.md" with { type: "text" };
-import p107 from "../prompts/system/image-attachment.md" with { type: "text" };
-import p108 from "../prompts/system/interrupted-thinking.md" with { type: "text" };
-import p109 from "../prompts/system/irc-incoming.md" with { type: "text" };
-import p110 from "../prompts/system/jevify-notice.md" with { type: "text" };
-import p111 from "../prompts/system/job-caption-system.md" with { type: "text" };
-import p112 from "../prompts/system/job-caption-user.md" with { type: "text" };
-import p113 from "../prompts/system/job-widget-system.md" with { type: "text" };
-import p114 from "../prompts/system/job-widget-user.md" with { type: "text" };
-import p115 from "../prompts/system/judgment-local.md" with { type: "text" };
-import p116 from "../prompts/system/length-stop-retry.md" with { type: "text" };
-import p117 from "../prompts/system/malformed-function-call-retry.md" with { type: "text" };
-import p118 from "../prompts/system/manual-continue.md" with { type: "text" };
-import p119 from "../prompts/system/mcp-xdev-guidance.md" with { type: "text" };
-import p120 from "../prompts/system/memory-consolidation-system.md" with { type: "text" };
-import p121 from "../prompts/system/memory-extraction-system.md" with { type: "text" };
-import p122 from "../prompts/system/memory-recall-changes.md" with { type: "text" };
-import p123 from "../prompts/system/mid-run-todo-nudge.md" with { type: "text" };
-import p124 from "../prompts/system/mnemopi-instructions.md" with { type: "text" };
-import p125 from "../prompts/system/omfg-user.md" with { type: "text" };
-import p126 from "../prompts/system/orchestrate-notice.md" with { type: "text" };
-import p127 from "../prompts/system/personalities/default.md" with { type: "text" };
-import p128 from "../prompts/system/personalities/friendly.md" with { type: "text" };
-import p129 from "../prompts/system/personalities/pragmatic.md" with { type: "text" };
-import p130 from "../prompts/system/plan-filename.md" with { type: "text" };
-import p131 from "../prompts/system/plan-mode-active.md" with { type: "text" };
-import p132 from "../prompts/system/plan-mode-approved.md" with { type: "text" };
-import p133 from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
-import p134 from "../prompts/system/plan-mode-reference.md" with { type: "text" };
-import p135 from "../prompts/system/plan-mode-subagent.md" with { type: "text" };
-import p136 from "../prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
-import p137 from "../prompts/system/plan-yolo-handoff.md" with { type: "text" };
-import p138 from "../prompts/system/prewalk-checklist.md" with { type: "text" };
-import p139 from "../prompts/system/prewalk-continue.md" with { type: "text" };
-import p140 from "../prompts/system/prewalk-plan.md" with { type: "text" };
-import p141 from "../prompts/system/project-prompt.md" with { type: "text" };
-import p142 from "../prompts/system/recap-user.md" with { type: "text" };
-import p143 from "../prompts/system/resolve-device-reminder.md" with { type: "text" };
-import p144 from "../prompts/system/rewind-report.md" with { type: "text" };
-import p145 from "../prompts/system/seance-assignment.md" with { type: "text" };
-import p146 from "../prompts/system/seance-command-solution-space.md" with { type: "text" };
-import p147 from "../prompts/system/seance-command.md" with { type: "text" };
-import p148 from "../prompts/system/session-agent-notice.md" with { type: "text" };
-import p149 from "../prompts/system/session-stop-blocked.md" with { type: "text" };
-import p150 from "../prompts/system/side-channel-no-tools.md" with { type: "text" };
-import p151 from "../prompts/system/skill-notice.md" with { type: "text" };
-import p152 from "../prompts/system/skillful-notice.md" with { type: "text" };
-import p153 from "../prompts/system/snapcompact-context-frames-note.md" with { type: "text" };
-import p154 from "../prompts/system/snapcompact-context-stub.md" with { type: "text" };
-import p155 from "../prompts/system/snapcompact-read-note.md" with { type: "text" };
-import p156 from "../prompts/system/snapcompact-system-frames-note.md" with { type: "text" };
-import p157 from "../prompts/system/snapcompact-system-stub.md" with { type: "text" };
-import p158 from "../prompts/system/snapcompact-toolresult-note.md" with { type: "text" };
-import p159 from "../prompts/system/speech-rewrite.md" with { type: "text" };
-import p160 from "../prompts/system/stream-stall-continue.md" with { type: "text" };
-import p161 from "../prompts/system/streaming-edit-recovery.md" with { type: "text" };
-import p162 from "../prompts/system/subagent-async-pending.md" with { type: "text" };
-import p163 from "../prompts/system/subagent-completion-probe.md" with { type: "text" };
-import p164 from "../prompts/system/subagent-step.md" with { type: "text" };
-import p165 from "../prompts/system/subagent-steps-brief.md" with { type: "text" };
-import p166 from "../prompts/system/subagent-system-prompt.md" with { type: "text" };
-import p167 from "../prompts/system/subagent-user-prompt.md" with { type: "text" };
-import p168 from "../prompts/system/subagent-yield-reminder.md" with { type: "text" };
-import p169 from "../prompts/system/system-prompt.md" with { type: "text" };
-import p170 from "../prompts/system/tan-context-switch.md" with { type: "text" };
-import p171 from "../prompts/system/task-label.md" with { type: "text" };
-import p172 from "../prompts/system/thinking-loop-redirect.md" with { type: "text" };
-import p173 from "../prompts/system/title-card.md" with { type: "text" };
-import p174 from "../prompts/system/title-fork.md" with { type: "text" };
-import p175 from "../prompts/system/title-marker-instruction.md" with { type: "text" };
-import p176 from "../prompts/system/title-system.md" with { type: "text" };
-import p177 from "../prompts/system/tool-call-loop-redirect.md" with { type: "text" };
-import p178 from "../prompts/system/tool-roster-notice.md" with { type: "text" };
-import p179 from "../prompts/system/ttsr-interrupt.md" with { type: "text" };
-import p180 from "../prompts/system/ttsr-tool-reminder.md" with { type: "text" };
-import p181 from "../prompts/system/ttsr-warning.md" with { type: "text" };
-import p182 from "../prompts/system/ultrathink-notice.md" with { type: "text" };
-import p183 from "../prompts/system/unexpected-stop-retry.md" with { type: "text" };
-import p184 from "../prompts/system/user-append.md" with { type: "text" };
-import p185 from "../prompts/system/vibe-mode-active.md" with { type: "text" };
-import p186 from "../prompts/system/video-attachment.md" with { type: "text" };
-import p187 from "../prompts/system/web-search.md" with { type: "text" };
-import p188 from "../prompts/system/workflow-notice.md" with { type: "text" };
-import p189 from "../prompts/system/x-read.md" with { type: "text" };
-import p190 from "../prompts/system/xdev-mount-notice.md" with { type: "text" };
-import p191 from "../prompts/tools/agent-url-progress.md" with { type: "text" };
-import p192 from "../prompts/tools/agent-url-superseded.md" with { type: "text" };
-import p193 from "../prompts/tools/approval-folder.md" with { type: "text" };
-import p194 from "../prompts/tools/approve.md" with { type: "text" };
-import p195 from "../prompts/tools/archive.md" with { type: "text" };
-import p196 from "../prompts/tools/ask-headless-fork.md" with { type: "text" };
-import p197 from "../prompts/tools/ask-result.md" with { type: "text" };
-import p198 from "../prompts/tools/ask.md" with { type: "text" };
-import p199 from "../prompts/tools/ast-edit.md" with { type: "text" };
-import p200 from "../prompts/tools/ast-grep.md" with { type: "text" };
-import p201 from "../prompts/tools/async-result.md" with { type: "text" };
-import p202 from "../prompts/tools/bash.md" with { type: "text" };
-import p203 from "../prompts/tools/browser.md" with { type: "text" };
-import p204 from "../prompts/tools/cfg-approval-timeout.md" with { type: "text" };
-import p205 from "../prompts/tools/cfg-env-shadowed.md" with { type: "text" };
-import p206 from "../prompts/tools/cfg-write-result.md" with { type: "text" };
-import p207 from "../prompts/tools/checkpoint.md" with { type: "text" };
-import p208 from "../prompts/tools/computer-escape-after-call.md" with { type: "text" };
-import p209 from "../prompts/tools/computer-escape-refused.md" with { type: "text" };
-import p210 from "../prompts/tools/computer-escape-stopped.md" with { type: "text" };
-import p211 from "../prompts/tools/computer-screen-locked-capture.md" with { type: "text" };
-import p212 from "../prompts/tools/computer-screen-state.md" with { type: "text" };
-import p213 from "../prompts/tools/computer-secure-input.md" with { type: "text" };
-import p214 from "../prompts/tools/computer.md" with { type: "text" };
-import p215 from "../prompts/tools/context-notes-text.md" with { type: "text" };
-import p216 from "../prompts/tools/context-notes.md" with { type: "text" };
-import p217 from "../prompts/tools/debug.md" with { type: "text" };
-import p218 from "../prompts/tools/eval-agents.md" with { type: "text" };
-import p219 from "../prompts/tools/eval-helpers.md" with { type: "text" };
-import p220 from "../prompts/tools/eval-judge.md" with { type: "text" };
-import p221 from "../prompts/tools/eval.md" with { type: "text" };
-import p222 from "../prompts/tools/find-spotlight-probe.md" with { type: "text" };
-import p223 from "../prompts/tools/find-spotlight-task.md" with { type: "text" };
-import p224 from "../prompts/tools/find.md" with { type: "text" };
-import p225 from "../prompts/tools/github.md" with { type: "text" };
-import p226 from "../prompts/tools/glob.md" with { type: "text" };
-import p227 from "../prompts/tools/goal.md" with { type: "text" };
-import p228 from "../prompts/tools/grep.md" with { type: "text" };
-import p229 from "../prompts/tools/ida.md" with { type: "text" };
-import p230 from "../prompts/tools/image-attachment-describe-system.md" with { type: "text" };
-import p231 from "../prompts/tools/image-attachment-describe.md" with { type: "text" };
-import p232 from "../prompts/tools/image-gen.md" with { type: "text" };
-import p233 from "../prompts/tools/image-question-system.md" with { type: "text" };
-import p234 from "../prompts/tools/isolation-error.md" with { type: "text" };
-import p235 from "../prompts/tools/isolation-recovery-hint.md" with { type: "text" };
-import p236 from "../prompts/tools/isolation-summary.md" with { type: "text" };
-import p237 from "../prompts/tools/learn.md" with { type: "text" };
-import p238 from "../prompts/tools/lsp-late-diagnostic.md" with { type: "text" };
-import p239 from "../prompts/tools/lsp.md" with { type: "text" };
-import p240 from "../prompts/tools/manage-skill.md" with { type: "text" };
-import p241 from "../prompts/tools/memory-edit.md" with { type: "text" };
-import p242 from "../prompts/tools/native-delegation.md" with { type: "text" };
-import p243 from "../prompts/tools/new-context.md" with { type: "text" };
-import p244 from "../prompts/tools/pdf-text-incomplete.md" with { type: "text" };
-import p245 from "../prompts/tools/ratchet.md" with { type: "text" };
-import p246 from "../prompts/tools/read-sources.md" with { type: "text" };
-import p247 from "../prompts/tools/read.md" with { type: "text" };
-import p248 from "../prompts/tools/recall.md" with { type: "text" };
-import p249 from "../prompts/tools/reflect.md" with { type: "text" };
-import p250 from "../prompts/tools/retain.md" with { type: "text" };
-import p251 from "../prompts/tools/rewind.md" with { type: "text" };
-import p252 from "../prompts/tools/rewrite.md" with { type: "text" };
-import p253 from "../prompts/tools/salvaged-child-hint.md" with { type: "text" };
-import p254 from "../prompts/tools/seance-task-guidance.md" with { type: "text" };
-import p255 from "../prompts/tools/security-publish.md" with { type: "text" };
-import p256 from "../prompts/tools/security-scan.md" with { type: "text" };
-import p257 from "../prompts/tools/task-async-contract.md" with { type: "text" };
-import p258 from "../prompts/tools/task-coordination-advisory.md" with { type: "text" };
-import p259 from "../prompts/tools/task-follow-up.md" with { type: "text" };
-import p260 from "../prompts/tools/task-spawn-feedback.md" with { type: "text" };
-import p261 from "../prompts/tools/task-specialization-advisory.md" with { type: "text" };
-import p262 from "../prompts/tools/task-summary.md" with { type: "text" };
-import p263 from "../prompts/tools/task.md" with { type: "text" };
-import p264 from "../prompts/tools/todo.md" with { type: "text" };
-import p265 from "../prompts/tools/tts.md" with { type: "text" };
-import p266 from "../prompts/tools/vibe-kill.md" with { type: "text" };
-import p267 from "../prompts/tools/vibe-list.md" with { type: "text" };
-import p268 from "../prompts/tools/vibe-send.md" with { type: "text" };
-import p269 from "../prompts/tools/vibe-spawn.md" with { type: "text" };
-import p270 from "../prompts/tools/vibe-turn-result.md" with { type: "text" };
-import p271 from "../prompts/tools/vibe-wait.md" with { type: "text" };
-import p272 from "../prompts/tools/wait-idle.md" with { type: "text" };
-import p273 from "../prompts/tools/wait.md" with { type: "text" };
-import p274 from "../prompts/tools/web-search.md" with { type: "text" };
-import p275 from "../prompts/tools/workpool-batch.md" with { type: "text" };
-import p276 from "../prompts/tools/workpool-turn-result.md" with { type: "text" };
-import p277 from "../prompts/tools/write-device-only-refusal.md" with { type: "text" };
-import p278 from "../prompts/tools/write-device-only.md" with { type: "text" };
-import p279 from "../prompts/tools/write.md" with { type: "text" };
-import p280 from "../prompts/tools/yield-data-error-conflict.md" with { type: "text" };
-import p281 from "../prompts/tools/yield.md" with { type: "text" };
+import p4 from "../prompts/advisor/mark-system.md" with { type: "text" };
+import p5 from "../prompts/advisor/mark-tool.md" with { type: "text" };
+import p6 from "../prompts/advisor/memory-context.md" with { type: "text" };
+import p7 from "../prompts/advisor/system.md" with { type: "text" };
+import p8 from "../prompts/agents/frontmatter.md" with { type: "text" };
+import p9 from "../prompts/agents/init.md" with { type: "text" };
+import p10 from "../prompts/agents/model-mention.md" with { type: "text" };
+import p11 from "../prompts/agents/reviewer.md" with { type: "text" };
+import p12 from "../prompts/agents/scout.md" with { type: "text" };
+import p13 from "../prompts/agents/seance.md" with { type: "text" };
+import p14 from "../prompts/agents/security-reviewer.md" with { type: "text" };
+import p15 from "../prompts/agents/task.md" with { type: "text" };
+import p16 from "../prompts/bench/cache-prefix-chunk.md" with { type: "text" };
+import p17 from "../prompts/bench/cache-prefix.md" with { type: "text" };
+import p18 from "../prompts/bench/cache-suffix.md" with { type: "text" };
+import p19 from "../prompts/bench/chat.md" with { type: "text" };
+import p20 from "../prompts/bench/generation.md" with { type: "text" };
+import p21 from "../prompts/bench/prefill-instruction.md" with { type: "text" };
+import p22 from "../prompts/ci-green-request.md" with { type: "text" };
+import p23 from "../prompts/dry-balance-bench.md" with { type: "text" };
+import p24 from "../prompts/goals/goal-budget-limit.md" with { type: "text" };
+import p25 from "../prompts/goals/goal-continuation.md" with { type: "text" };
+import p26 from "../prompts/goals/goal-mode-active.md" with { type: "text" };
+import p27 from "../prompts/goals/goal-mode-context.md" with { type: "text" };
+import p28 from "../prompts/goals/goal-todo-context.md" with { type: "text" };
+import p29 from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
+import p30 from "../prompts/internal-urls/agent.md" with { type: "text" };
+import p31 from "../prompts/internal-urls/artifact.md" with { type: "text" };
+import p32 from "../prompts/internal-urls/cfg.md" with { type: "text" };
+import p33 from "../prompts/internal-urls/history.md" with { type: "text" };
+import p34 from "../prompts/internal-urls/issue-reference.md" with { type: "text" };
+import p35 from "../prompts/internal-urls/issue.md" with { type: "text" };
+import p36 from "../prompts/internal-urls/local.md" with { type: "text" };
+import p37 from "../prompts/internal-urls/mcp.md" with { type: "text" };
+import p38 from "../prompts/internal-urls/memory.md" with { type: "text" };
+import p39 from "../prompts/internal-urls/mr.md" with { type: "text" };
+import p40 from "../prompts/internal-urls/omp.md" with { type: "text" };
+import p41 from "../prompts/internal-urls/out.md" with { type: "text" };
+import p42 from "../prompts/internal-urls/proc-reference.md" with { type: "text" };
+import p43 from "../prompts/internal-urls/proc.md" with { type: "text" };
+import p44 from "../prompts/internal-urls/rule.md" with { type: "text" };
+import p45 from "../prompts/internal-urls/security.md" with { type: "text" };
+import p46 from "../prompts/internal-urls/skill.md" with { type: "text" };
+import p47 from "../prompts/internal-urls/ssh-reference.md" with { type: "text" };
+import p48 from "../prompts/internal-urls/ssh.md" with { type: "text" };
+import p49 from "../prompts/internal-urls/vault.md" with { type: "text" };
+import p50 from "../prompts/memories/consolidation.md" with { type: "text" };
+import p51 from "../prompts/memories/consolidation_system.md" with { type: "text" };
+import p52 from "../prompts/memories/read-path.md" with { type: "text" };
+import p53 from "../prompts/memories/sharpshooter-consolidate-input.md" with { type: "text" };
+import p54 from "../prompts/memories/sharpshooter-consolidate-system.md" with { type: "text" };
+import p55 from "../prompts/memories/sharpshooter-extract-input.md" with { type: "text" };
+import p56 from "../prompts/memories/sharpshooter-extract-system.md" with { type: "text" };
+import p57 from "../prompts/memories/stage_one_input.md" with { type: "text" };
+import p58 from "../prompts/memories/stage_one_system.md" with { type: "text" };
+import p59 from "../prompts/ratchet-kickoff.md" with { type: "text" };
+import p60 from "../prompts/review-custom-request.md" with { type: "text" };
+import p61 from "../prompts/review-headless-request.md" with { type: "text" };
+import p62 from "../prompts/review-request.md" with { type: "text" };
+import p63 from "../prompts/security/scan-coordinator.md" with { type: "text" };
+import p64 from "../prompts/security/scan-request.md" with { type: "text" };
+import p65 from "../prompts/security/validate-request.md" with { type: "text" };
+import p66 from "../prompts/session/launch-completion.md" with { type: "text" };
+import p67 from "../prompts/session/transfer-arrived.md" with { type: "text" };
+import p68 from "../prompts/session/transfer-departed.md" with { type: "text" };
+import p69 from "../prompts/session/transfer-stale-fork.md" with { type: "text" };
+import p70 from "../prompts/skills/autoload.md" with { type: "text" };
+import p71 from "../prompts/skills/compress-description.md" with { type: "text" };
+import p72 from "../prompts/skills/user-invocation.md" with { type: "text" };
+import p73 from "../prompts/spotlight/intent-field.md" with { type: "text" };
+import p74 from "../prompts/spotlight/intent-guidance.md" with { type: "text" };
+import p75 from "../prompts/spotlight/shape-probe.md" with { type: "text" };
+import p76 from "../prompts/spotlight/shape-rule.md" with { type: "text" };
+import p77 from "../prompts/steering/parent-irc.md" with { type: "text" };
+import p78 from "../prompts/steering/user-interjection.md" with { type: "text" };
+import p79 from "../prompts/system/active-repo-context.md" with { type: "text" };
+import p80 from "../prompts/system/agent-creation-architect.md" with { type: "text" };
+import p81 from "../prompts/system/agent-creation-user.md" with { type: "text" };
+import p82 from "../prompts/system/anthropic-usage-wrap-up.md" with { type: "text" };
+import p83 from "../prompts/system/auto-continue.md" with { type: "text" };
+import p84 from "../prompts/system/auto-parallel.md" with { type: "text" };
+import p85 from "../prompts/system/autolearn-capture-refused.md" with { type: "text" };
+import p86 from "../prompts/system/autolearn-guidance-learn.md" with { type: "text" };
+import p87 from "../prompts/system/autolearn-guidance.md" with { type: "text" };
+import p88 from "../prompts/system/autolearn-nudge-autocontinue.md" with { type: "text" };
+import p89 from "../prompts/system/background-tan-dispatch.md" with { type: "text" };
+import p90 from "../prompts/system/browser-relay.md" with { type: "text" };
+import p91 from "../prompts/system/btw-user.md" with { type: "text" };
+import p92 from "../prompts/system/checkpoint-active-notice.md" with { type: "text" };
+import p93 from "../prompts/system/chillax-notice.md" with { type: "text" };
+import p94 from "../prompts/system/commit-message-system.md" with { type: "text" };
+import p95 from "../prompts/system/composer-prediction-user.md" with { type: "text" };
+import p96 from "../prompts/system/computer-use.md" with { type: "text" };
+import p97 from "../prompts/system/context-notes.md" with { type: "text" };
+import p98 from "../prompts/system/custom-system-prompt.md" with { type: "text" };
+import p99 from "../prompts/system/date-cwd-reminder.md" with { type: "text" };
+import p100 from "../prompts/system/eager-task.md" with { type: "text" };
+import p101 from "../prompts/system/eager-todo.md" with { type: "text" };
+import p102 from "../prompts/system/empty-stop-retry.md" with { type: "text" };
+import p103 from "../prompts/system/eval-prelude-notice.md" with { type: "text" };
+import p104 from "../prompts/system/eval-state-context.md" with { type: "text" };
+import p105 from "../prompts/system/experimental-context-notes-reminder.md" with { type: "text" };
+import p106 from "../prompts/system/experimental-context-rollover.md" with { type: "text" };
+import p107 from "../prompts/system/gemini-tool-call-reminder.md" with { type: "text" };
+import p108 from "../prompts/system/hindsight-instructions.md" with { type: "text" };
+import p109 from "../prompts/system/image-attachment.md" with { type: "text" };
+import p110 from "../prompts/system/interrupted-thinking.md" with { type: "text" };
+import p111 from "../prompts/system/irc-incoming.md" with { type: "text" };
+import p112 from "../prompts/system/jevify-notice.md" with { type: "text" };
+import p113 from "../prompts/system/job-caption-system.md" with { type: "text" };
+import p114 from "../prompts/system/job-caption-user.md" with { type: "text" };
+import p115 from "../prompts/system/job-widget-system.md" with { type: "text" };
+import p116 from "../prompts/system/job-widget-user.md" with { type: "text" };
+import p117 from "../prompts/system/judgment-local.md" with { type: "text" };
+import p118 from "../prompts/system/length-stop-retry.md" with { type: "text" };
+import p119 from "../prompts/system/malformed-function-call-retry.md" with { type: "text" };
+import p120 from "../prompts/system/manual-continue.md" with { type: "text" };
+import p121 from "../prompts/system/mcp-xdev-guidance.md" with { type: "text" };
+import p122 from "../prompts/system/memory-consolidation-system.md" with { type: "text" };
+import p123 from "../prompts/system/memory-extraction-system.md" with { type: "text" };
+import p124 from "../prompts/system/memory-recall-changes.md" with { type: "text" };
+import p125 from "../prompts/system/mid-run-todo-nudge.md" with { type: "text" };
+import p126 from "../prompts/system/mnemopi-instructions.md" with { type: "text" };
+import p127 from "../prompts/system/omfg-user.md" with { type: "text" };
+import p128 from "../prompts/system/orchestrate-notice.md" with { type: "text" };
+import p129 from "../prompts/system/personalities/default.md" with { type: "text" };
+import p130 from "../prompts/system/personalities/friendly.md" with { type: "text" };
+import p131 from "../prompts/system/personalities/pragmatic.md" with { type: "text" };
+import p132 from "../prompts/system/plan-filename.md" with { type: "text" };
+import p133 from "../prompts/system/plan-mode-active.md" with { type: "text" };
+import p134 from "../prompts/system/plan-mode-approved.md" with { type: "text" };
+import p135 from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
+import p136 from "../prompts/system/plan-mode-reference.md" with { type: "text" };
+import p137 from "../prompts/system/plan-mode-subagent.md" with { type: "text" };
+import p138 from "../prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
+import p139 from "../prompts/system/plan-yolo-handoff.md" with { type: "text" };
+import p140 from "../prompts/system/prewalk-checklist.md" with { type: "text" };
+import p141 from "../prompts/system/prewalk-continue.md" with { type: "text" };
+import p142 from "../prompts/system/prewalk-plan.md" with { type: "text" };
+import p143 from "../prompts/system/project-prompt.md" with { type: "text" };
+import p144 from "../prompts/system/recap-user.md" with { type: "text" };
+import p145 from "../prompts/system/resolve-device-reminder.md" with { type: "text" };
+import p146 from "../prompts/system/rewind-report.md" with { type: "text" };
+import p147 from "../prompts/system/seance-assignment.md" with { type: "text" };
+import p148 from "../prompts/system/seance-command-solution-space.md" with { type: "text" };
+import p149 from "../prompts/system/seance-command.md" with { type: "text" };
+import p150 from "../prompts/system/session-agent-notice.md" with { type: "text" };
+import p151 from "../prompts/system/session-stop-blocked.md" with { type: "text" };
+import p152 from "../prompts/system/side-channel-no-tools.md" with { type: "text" };
+import p153 from "../prompts/system/skill-notice.md" with { type: "text" };
+import p154 from "../prompts/system/skillful-notice.md" with { type: "text" };
+import p155 from "../prompts/system/snapcompact-context-frames-note.md" with { type: "text" };
+import p156 from "../prompts/system/snapcompact-context-stub.md" with { type: "text" };
+import p157 from "../prompts/system/snapcompact-read-note.md" with { type: "text" };
+import p158 from "../prompts/system/snapcompact-system-frames-note.md" with { type: "text" };
+import p159 from "../prompts/system/snapcompact-system-stub.md" with { type: "text" };
+import p160 from "../prompts/system/snapcompact-toolresult-note.md" with { type: "text" };
+import p161 from "../prompts/system/speech-rewrite.md" with { type: "text" };
+import p162 from "../prompts/system/stream-stall-continue.md" with { type: "text" };
+import p163 from "../prompts/system/streaming-edit-recovery.md" with { type: "text" };
+import p164 from "../prompts/system/subagent-async-pending.md" with { type: "text" };
+import p165 from "../prompts/system/subagent-completion-probe.md" with { type: "text" };
+import p166 from "../prompts/system/subagent-step.md" with { type: "text" };
+import p167 from "../prompts/system/subagent-steps-brief.md" with { type: "text" };
+import p168 from "../prompts/system/subagent-system-prompt.md" with { type: "text" };
+import p169 from "../prompts/system/subagent-user-prompt.md" with { type: "text" };
+import p170 from "../prompts/system/subagent-yield-reminder.md" with { type: "text" };
+import p171 from "../prompts/system/system-prompt.md" with { type: "text" };
+import p172 from "../prompts/system/tan-context-switch.md" with { type: "text" };
+import p173 from "../prompts/system/task-label.md" with { type: "text" };
+import p174 from "../prompts/system/thinking-loop-redirect.md" with { type: "text" };
+import p175 from "../prompts/system/title-card.md" with { type: "text" };
+import p176 from "../prompts/system/title-fork.md" with { type: "text" };
+import p177 from "../prompts/system/title-marker-instruction.md" with { type: "text" };
+import p178 from "../prompts/system/title-system.md" with { type: "text" };
+import p179 from "../prompts/system/tool-call-loop-redirect.md" with { type: "text" };
+import p180 from "../prompts/system/tool-roster-notice.md" with { type: "text" };
+import p181 from "../prompts/system/ttsr-interrupt.md" with { type: "text" };
+import p182 from "../prompts/system/ttsr-tool-reminder.md" with { type: "text" };
+import p183 from "../prompts/system/ttsr-warning.md" with { type: "text" };
+import p184 from "../prompts/system/ultrathink-notice.md" with { type: "text" };
+import p185 from "../prompts/system/unexpected-stop-retry.md" with { type: "text" };
+import p186 from "../prompts/system/user-append.md" with { type: "text" };
+import p187 from "../prompts/system/vibe-mode-active.md" with { type: "text" };
+import p188 from "../prompts/system/video-attachment.md" with { type: "text" };
+import p189 from "../prompts/system/web-search.md" with { type: "text" };
+import p190 from "../prompts/system/workflow-notice.md" with { type: "text" };
+import p191 from "../prompts/system/x-read.md" with { type: "text" };
+import p192 from "../prompts/system/xdev-mount-notice.md" with { type: "text" };
+import p193 from "../prompts/tools/agent-url-progress.md" with { type: "text" };
+import p194 from "../prompts/tools/agent-url-superseded.md" with { type: "text" };
+import p195 from "../prompts/tools/approval-folder.md" with { type: "text" };
+import p196 from "../prompts/tools/approve.md" with { type: "text" };
+import p197 from "../prompts/tools/archive.md" with { type: "text" };
+import p198 from "../prompts/tools/ask-headless-fork.md" with { type: "text" };
+import p199 from "../prompts/tools/ask-result.md" with { type: "text" };
+import p200 from "../prompts/tools/ask.md" with { type: "text" };
+import p201 from "../prompts/tools/ast-edit.md" with { type: "text" };
+import p202 from "../prompts/tools/ast-grep.md" with { type: "text" };
+import p203 from "../prompts/tools/async-result.md" with { type: "text" };
+import p204 from "../prompts/tools/bash.md" with { type: "text" };
+import p205 from "../prompts/tools/browser.md" with { type: "text" };
+import p206 from "../prompts/tools/cfg-approval-timeout.md" with { type: "text" };
+import p207 from "../prompts/tools/cfg-env-shadowed.md" with { type: "text" };
+import p208 from "../prompts/tools/cfg-write-result.md" with { type: "text" };
+import p209 from "../prompts/tools/checkpoint.md" with { type: "text" };
+import p210 from "../prompts/tools/computer-escape-after-call.md" with { type: "text" };
+import p211 from "../prompts/tools/computer-escape-refused.md" with { type: "text" };
+import p212 from "../prompts/tools/computer-escape-stopped.md" with { type: "text" };
+import p213 from "../prompts/tools/computer-screen-locked-capture.md" with { type: "text" };
+import p214 from "../prompts/tools/computer-screen-state.md" with { type: "text" };
+import p215 from "../prompts/tools/computer-secure-input.md" with { type: "text" };
+import p216 from "../prompts/tools/computer.md" with { type: "text" };
+import p217 from "../prompts/tools/context-notes-text.md" with { type: "text" };
+import p218 from "../prompts/tools/context-notes.md" with { type: "text" };
+import p219 from "../prompts/tools/debug.md" with { type: "text" };
+import p220 from "../prompts/tools/eval-agents.md" with { type: "text" };
+import p221 from "../prompts/tools/eval-helpers.md" with { type: "text" };
+import p222 from "../prompts/tools/eval-judge.md" with { type: "text" };
+import p223 from "../prompts/tools/eval.md" with { type: "text" };
+import p224 from "../prompts/tools/find-spotlight-probe.md" with { type: "text" };
+import p225 from "../prompts/tools/find-spotlight-task.md" with { type: "text" };
+import p226 from "../prompts/tools/find.md" with { type: "text" };
+import p227 from "../prompts/tools/github.md" with { type: "text" };
+import p228 from "../prompts/tools/glob.md" with { type: "text" };
+import p229 from "../prompts/tools/goal.md" with { type: "text" };
+import p230 from "../prompts/tools/grep.md" with { type: "text" };
+import p231 from "../prompts/tools/ida.md" with { type: "text" };
+import p232 from "../prompts/tools/image-attachment-describe-system.md" with { type: "text" };
+import p233 from "../prompts/tools/image-attachment-describe.md" with { type: "text" };
+import p234 from "../prompts/tools/image-gen.md" with { type: "text" };
+import p235 from "../prompts/tools/image-question-system.md" with { type: "text" };
+import p236 from "../prompts/tools/isolation-error.md" with { type: "text" };
+import p237 from "../prompts/tools/isolation-recovery-hint.md" with { type: "text" };
+import p238 from "../prompts/tools/isolation-summary.md" with { type: "text" };
+import p239 from "../prompts/tools/learn.md" with { type: "text" };
+import p240 from "../prompts/tools/lsp-late-diagnostic.md" with { type: "text" };
+import p241 from "../prompts/tools/lsp.md" with { type: "text" };
+import p242 from "../prompts/tools/manage-skill.md" with { type: "text" };
+import p243 from "../prompts/tools/memory-edit.md" with { type: "text" };
+import p244 from "../prompts/tools/native-delegation.md" with { type: "text" };
+import p245 from "../prompts/tools/new-context.md" with { type: "text" };
+import p246 from "../prompts/tools/pdf-text-incomplete.md" with { type: "text" };
+import p247 from "../prompts/tools/ratchet.md" with { type: "text" };
+import p248 from "../prompts/tools/read-sources.md" with { type: "text" };
+import p249 from "../prompts/tools/read.md" with { type: "text" };
+import p250 from "../prompts/tools/recall.md" with { type: "text" };
+import p251 from "../prompts/tools/reflect.md" with { type: "text" };
+import p252 from "../prompts/tools/retain.md" with { type: "text" };
+import p253 from "../prompts/tools/rewind.md" with { type: "text" };
+import p254 from "../prompts/tools/rewrite.md" with { type: "text" };
+import p255 from "../prompts/tools/salvaged-child-hint.md" with { type: "text" };
+import p256 from "../prompts/tools/seance-task-guidance.md" with { type: "text" };
+import p257 from "../prompts/tools/security-publish.md" with { type: "text" };
+import p258 from "../prompts/tools/security-scan.md" with { type: "text" };
+import p259 from "../prompts/tools/task-async-contract.md" with { type: "text" };
+import p260 from "../prompts/tools/task-coordination-advisory.md" with { type: "text" };
+import p261 from "../prompts/tools/task-follow-up.md" with { type: "text" };
+import p262 from "../prompts/tools/task-spawn-feedback.md" with { type: "text" };
+import p263 from "../prompts/tools/task-specialization-advisory.md" with { type: "text" };
+import p264 from "../prompts/tools/task-summary.md" with { type: "text" };
+import p265 from "../prompts/tools/task.md" with { type: "text" };
+import p266 from "../prompts/tools/todo.md" with { type: "text" };
+import p267 from "../prompts/tools/tts.md" with { type: "text" };
+import p268 from "../prompts/tools/vibe-kill.md" with { type: "text" };
+import p269 from "../prompts/tools/vibe-list.md" with { type: "text" };
+import p270 from "../prompts/tools/vibe-send.md" with { type: "text" };
+import p271 from "../prompts/tools/vibe-spawn.md" with { type: "text" };
+import p272 from "../prompts/tools/vibe-turn-result.md" with { type: "text" };
+import p273 from "../prompts/tools/vibe-wait.md" with { type: "text" };
+import p274 from "../prompts/tools/wait-idle.md" with { type: "text" };
+import p275 from "../prompts/tools/wait.md" with { type: "text" };
+import p276 from "../prompts/tools/web-search.md" with { type: "text" };
+import p277 from "../prompts/tools/workpool-batch.md" with { type: "text" };
+import p278 from "../prompts/tools/workpool-turn-result.md" with { type: "text" };
+import p279 from "../prompts/tools/write-device-only-refusal.md" with { type: "text" };
+import p280 from "../prompts/tools/write-device-only.md" with { type: "text" };
+import p281 from "../prompts/tools/write.md" with { type: "text" };
+import p282 from "../prompts/tools/yield-data-error-conflict.md" with { type: "text" };
+import p283 from "../prompts/tools/yield.md" with { type: "text" };
 
 /** Every bundled Markdown prompt, keyed by its path under `src/prompts/`. */
 export const BUNDLED_PROMPTS: ReadonlyMap<string, string> = new Map([
@@ -288,282 +290,284 @@ export const BUNDLED_PROMPTS: ReadonlyMap<string, string> = new Map([
 	["advisor/advise-tool.md", p1],
 	["advisor/boundary-guidance.md", p2],
 	["advisor/context-files.md", p3],
-	["advisor/memory-context.md", p4],
-	["advisor/system.md", p5],
-	["agents/frontmatter.md", p6],
-	["agents/init.md", p7],
-	["agents/model-mention.md", p8],
-	["agents/reviewer.md", p9],
-	["agents/scout.md", p10],
-	["agents/seance.md", p11],
-	["agents/security-reviewer.md", p12],
-	["agents/task.md", p13],
-	["bench/cache-prefix-chunk.md", p14],
-	["bench/cache-prefix.md", p15],
-	["bench/cache-suffix.md", p16],
-	["bench/chat.md", p17],
-	["bench/generation.md", p18],
-	["bench/prefill-instruction.md", p19],
-	["ci-green-request.md", p20],
-	["dry-balance-bench.md", p21],
-	["goals/goal-budget-limit.md", p22],
-	["goals/goal-continuation.md", p23],
-	["goals/goal-mode-active.md", p24],
-	["goals/goal-mode-context.md", p25],
-	["goals/goal-todo-context.md", p26],
-	["goals/guided-goal-interview.md", p27],
-	["internal-urls/agent.md", p28],
-	["internal-urls/artifact.md", p29],
-	["internal-urls/cfg.md", p30],
-	["internal-urls/history.md", p31],
-	["internal-urls/issue-reference.md", p32],
-	["internal-urls/issue.md", p33],
-	["internal-urls/local.md", p34],
-	["internal-urls/mcp.md", p35],
-	["internal-urls/memory.md", p36],
-	["internal-urls/mr.md", p37],
-	["internal-urls/omp.md", p38],
-	["internal-urls/out.md", p39],
-	["internal-urls/proc-reference.md", p40],
-	["internal-urls/proc.md", p41],
-	["internal-urls/rule.md", p42],
-	["internal-urls/security.md", p43],
-	["internal-urls/skill.md", p44],
-	["internal-urls/ssh-reference.md", p45],
-	["internal-urls/ssh.md", p46],
-	["internal-urls/vault.md", p47],
-	["memories/consolidation.md", p48],
-	["memories/consolidation_system.md", p49],
-	["memories/read-path.md", p50],
-	["memories/sharpshooter-consolidate-input.md", p51],
-	["memories/sharpshooter-consolidate-system.md", p52],
-	["memories/sharpshooter-extract-input.md", p53],
-	["memories/sharpshooter-extract-system.md", p54],
-	["memories/stage_one_input.md", p55],
-	["memories/stage_one_system.md", p56],
-	["ratchet-kickoff.md", p57],
-	["review-custom-request.md", p58],
-	["review-headless-request.md", p59],
-	["review-request.md", p60],
-	["security/scan-coordinator.md", p61],
-	["security/scan-request.md", p62],
-	["security/validate-request.md", p63],
-	["session/launch-completion.md", p64],
-	["session/transfer-arrived.md", p65],
-	["session/transfer-departed.md", p66],
-	["session/transfer-stale-fork.md", p67],
-	["skills/autoload.md", p68],
-	["skills/compress-description.md", p69],
-	["skills/user-invocation.md", p70],
-	["spotlight/intent-field.md", p71],
-	["spotlight/intent-guidance.md", p72],
-	["spotlight/shape-probe.md", p73],
-	["spotlight/shape-rule.md", p74],
-	["steering/parent-irc.md", p75],
-	["steering/user-interjection.md", p76],
-	["system/active-repo-context.md", p77],
-	["system/agent-creation-architect.md", p78],
-	["system/agent-creation-user.md", p79],
-	["system/anthropic-usage-wrap-up.md", p80],
-	["system/auto-continue.md", p81],
-	["system/auto-parallel.md", p82],
-	["system/autolearn-capture-refused.md", p83],
-	["system/autolearn-guidance-learn.md", p84],
-	["system/autolearn-guidance.md", p85],
-	["system/autolearn-nudge-autocontinue.md", p86],
-	["system/background-tan-dispatch.md", p87],
-	["system/browser-relay.md", p88],
-	["system/btw-user.md", p89],
-	["system/checkpoint-active-notice.md", p90],
-	["system/chillax-notice.md", p91],
-	["system/commit-message-system.md", p92],
-	["system/composer-prediction-user.md", p93],
-	["system/computer-use.md", p94],
-	["system/context-notes.md", p95],
-	["system/custom-system-prompt.md", p96],
-	["system/date-cwd-reminder.md", p97],
-	["system/eager-task.md", p98],
-	["system/eager-todo.md", p99],
-	["system/empty-stop-retry.md", p100],
-	["system/eval-prelude-notice.md", p101],
-	["system/eval-state-context.md", p102],
-	["system/experimental-context-notes-reminder.md", p103],
-	["system/experimental-context-rollover.md", p104],
-	["system/gemini-tool-call-reminder.md", p105],
-	["system/hindsight-instructions.md", p106],
-	["system/image-attachment.md", p107],
-	["system/interrupted-thinking.md", p108],
-	["system/irc-incoming.md", p109],
-	["system/jevify-notice.md", p110],
-	["system/job-caption-system.md", p111],
-	["system/job-caption-user.md", p112],
-	["system/job-widget-system.md", p113],
-	["system/job-widget-user.md", p114],
-	["system/judgment-local.md", p115],
-	["system/length-stop-retry.md", p116],
-	["system/malformed-function-call-retry.md", p117],
-	["system/manual-continue.md", p118],
-	["system/mcp-xdev-guidance.md", p119],
-	["system/memory-consolidation-system.md", p120],
-	["system/memory-extraction-system.md", p121],
-	["system/memory-recall-changes.md", p122],
-	["system/mid-run-todo-nudge.md", p123],
-	["system/mnemopi-instructions.md", p124],
-	["system/omfg-user.md", p125],
-	["system/orchestrate-notice.md", p126],
-	["system/personalities/default.md", p127],
-	["system/personalities/friendly.md", p128],
-	["system/personalities/pragmatic.md", p129],
-	["system/plan-filename.md", p130],
-	["system/plan-mode-active.md", p131],
-	["system/plan-mode-approved.md", p132],
-	["system/plan-mode-compact-instructions.md", p133],
-	["system/plan-mode-reference.md", p134],
-	["system/plan-mode-subagent.md", p135],
-	["system/plan-mode-tool-decision-reminder.md", p136],
-	["system/plan-yolo-handoff.md", p137],
-	["system/prewalk-checklist.md", p138],
-	["system/prewalk-continue.md", p139],
-	["system/prewalk-plan.md", p140],
-	["system/project-prompt.md", p141],
-	["system/recap-user.md", p142],
-	["system/resolve-device-reminder.md", p143],
-	["system/rewind-report.md", p144],
-	["system/seance-assignment.md", p145],
-	["system/seance-command-solution-space.md", p146],
-	["system/seance-command.md", p147],
-	["system/session-agent-notice.md", p148],
-	["system/session-stop-blocked.md", p149],
-	["system/side-channel-no-tools.md", p150],
-	["system/skill-notice.md", p151],
-	["system/skillful-notice.md", p152],
-	["system/snapcompact-context-frames-note.md", p153],
-	["system/snapcompact-context-stub.md", p154],
-	["system/snapcompact-read-note.md", p155],
-	["system/snapcompact-system-frames-note.md", p156],
-	["system/snapcompact-system-stub.md", p157],
-	["system/snapcompact-toolresult-note.md", p158],
-	["system/speech-rewrite.md", p159],
-	["system/stream-stall-continue.md", p160],
-	["system/streaming-edit-recovery.md", p161],
-	["system/subagent-async-pending.md", p162],
-	["system/subagent-completion-probe.md", p163],
-	["system/subagent-step.md", p164],
-	["system/subagent-steps-brief.md", p165],
-	["system/subagent-system-prompt.md", p166],
-	["system/subagent-user-prompt.md", p167],
-	["system/subagent-yield-reminder.md", p168],
-	["system/system-prompt.md", p169],
-	["system/tan-context-switch.md", p170],
-	["system/task-label.md", p171],
-	["system/thinking-loop-redirect.md", p172],
-	["system/title-card.md", p173],
-	["system/title-fork.md", p174],
-	["system/title-marker-instruction.md", p175],
-	["system/title-system.md", p176],
-	["system/tool-call-loop-redirect.md", p177],
-	["system/tool-roster-notice.md", p178],
-	["system/ttsr-interrupt.md", p179],
-	["system/ttsr-tool-reminder.md", p180],
-	["system/ttsr-warning.md", p181],
-	["system/ultrathink-notice.md", p182],
-	["system/unexpected-stop-retry.md", p183],
-	["system/user-append.md", p184],
-	["system/vibe-mode-active.md", p185],
-	["system/video-attachment.md", p186],
-	["system/web-search.md", p187],
-	["system/workflow-notice.md", p188],
-	["system/x-read.md", p189],
-	["system/xdev-mount-notice.md", p190],
-	["tools/agent-url-progress.md", p191],
-	["tools/agent-url-superseded.md", p192],
-	["tools/approval-folder.md", p193],
-	["tools/approve.md", p194],
-	["tools/archive.md", p195],
-	["tools/ask-headless-fork.md", p196],
-	["tools/ask-result.md", p197],
-	["tools/ask.md", p198],
-	["tools/ast-edit.md", p199],
-	["tools/ast-grep.md", p200],
-	["tools/async-result.md", p201],
-	["tools/bash.md", p202],
-	["tools/browser.md", p203],
-	["tools/cfg-approval-timeout.md", p204],
-	["tools/cfg-env-shadowed.md", p205],
-	["tools/cfg-write-result.md", p206],
-	["tools/checkpoint.md", p207],
-	["tools/computer-escape-after-call.md", p208],
-	["tools/computer-escape-refused.md", p209],
-	["tools/computer-escape-stopped.md", p210],
-	["tools/computer-screen-locked-capture.md", p211],
-	["tools/computer-screen-state.md", p212],
-	["tools/computer-secure-input.md", p213],
-	["tools/computer.md", p214],
-	["tools/context-notes-text.md", p215],
-	["tools/context-notes.md", p216],
-	["tools/debug.md", p217],
-	["tools/eval-agents.md", p218],
-	["tools/eval-helpers.md", p219],
-	["tools/eval-judge.md", p220],
-	["tools/eval.md", p221],
-	["tools/find-spotlight-probe.md", p222],
-	["tools/find-spotlight-task.md", p223],
-	["tools/find.md", p224],
-	["tools/github.md", p225],
-	["tools/glob.md", p226],
-	["tools/goal.md", p227],
-	["tools/grep.md", p228],
-	["tools/ida.md", p229],
-	["tools/image-attachment-describe-system.md", p230],
-	["tools/image-attachment-describe.md", p231],
-	["tools/image-gen.md", p232],
-	["tools/image-question-system.md", p233],
-	["tools/isolation-error.md", p234],
-	["tools/isolation-recovery-hint.md", p235],
-	["tools/isolation-summary.md", p236],
-	["tools/learn.md", p237],
-	["tools/lsp-late-diagnostic.md", p238],
-	["tools/lsp.md", p239],
-	["tools/manage-skill.md", p240],
-	["tools/memory-edit.md", p241],
-	["tools/native-delegation.md", p242],
-	["tools/new-context.md", p243],
-	["tools/pdf-text-incomplete.md", p244],
-	["tools/ratchet.md", p245],
-	["tools/read-sources.md", p246],
-	["tools/read.md", p247],
-	["tools/recall.md", p248],
-	["tools/reflect.md", p249],
-	["tools/retain.md", p250],
-	["tools/rewind.md", p251],
-	["tools/rewrite.md", p252],
-	["tools/salvaged-child-hint.md", p253],
-	["tools/seance-task-guidance.md", p254],
-	["tools/security-publish.md", p255],
-	["tools/security-scan.md", p256],
-	["tools/task-async-contract.md", p257],
-	["tools/task-coordination-advisory.md", p258],
-	["tools/task-follow-up.md", p259],
-	["tools/task-spawn-feedback.md", p260],
-	["tools/task-specialization-advisory.md", p261],
-	["tools/task-summary.md", p262],
-	["tools/task.md", p263],
-	["tools/todo.md", p264],
-	["tools/tts.md", p265],
-	["tools/vibe-kill.md", p266],
-	["tools/vibe-list.md", p267],
-	["tools/vibe-send.md", p268],
-	["tools/vibe-spawn.md", p269],
-	["tools/vibe-turn-result.md", p270],
-	["tools/vibe-wait.md", p271],
-	["tools/wait-idle.md", p272],
-	["tools/wait.md", p273],
-	["tools/web-search.md", p274],
-	["tools/workpool-batch.md", p275],
-	["tools/workpool-turn-result.md", p276],
-	["tools/write-device-only-refusal.md", p277],
-	["tools/write-device-only.md", p278],
-	["tools/write.md", p279],
-	["tools/yield-data-error-conflict.md", p280],
-	["tools/yield.md", p281],
+	["advisor/mark-system.md", p4],
+	["advisor/mark-tool.md", p5],
+	["advisor/memory-context.md", p6],
+	["advisor/system.md", p7],
+	["agents/frontmatter.md", p8],
+	["agents/init.md", p9],
+	["agents/model-mention.md", p10],
+	["agents/reviewer.md", p11],
+	["agents/scout.md", p12],
+	["agents/seance.md", p13],
+	["agents/security-reviewer.md", p14],
+	["agents/task.md", p15],
+	["bench/cache-prefix-chunk.md", p16],
+	["bench/cache-prefix.md", p17],
+	["bench/cache-suffix.md", p18],
+	["bench/chat.md", p19],
+	["bench/generation.md", p20],
+	["bench/prefill-instruction.md", p21],
+	["ci-green-request.md", p22],
+	["dry-balance-bench.md", p23],
+	["goals/goal-budget-limit.md", p24],
+	["goals/goal-continuation.md", p25],
+	["goals/goal-mode-active.md", p26],
+	["goals/goal-mode-context.md", p27],
+	["goals/goal-todo-context.md", p28],
+	["goals/guided-goal-interview.md", p29],
+	["internal-urls/agent.md", p30],
+	["internal-urls/artifact.md", p31],
+	["internal-urls/cfg.md", p32],
+	["internal-urls/history.md", p33],
+	["internal-urls/issue-reference.md", p34],
+	["internal-urls/issue.md", p35],
+	["internal-urls/local.md", p36],
+	["internal-urls/mcp.md", p37],
+	["internal-urls/memory.md", p38],
+	["internal-urls/mr.md", p39],
+	["internal-urls/omp.md", p40],
+	["internal-urls/out.md", p41],
+	["internal-urls/proc-reference.md", p42],
+	["internal-urls/proc.md", p43],
+	["internal-urls/rule.md", p44],
+	["internal-urls/security.md", p45],
+	["internal-urls/skill.md", p46],
+	["internal-urls/ssh-reference.md", p47],
+	["internal-urls/ssh.md", p48],
+	["internal-urls/vault.md", p49],
+	["memories/consolidation.md", p50],
+	["memories/consolidation_system.md", p51],
+	["memories/read-path.md", p52],
+	["memories/sharpshooter-consolidate-input.md", p53],
+	["memories/sharpshooter-consolidate-system.md", p54],
+	["memories/sharpshooter-extract-input.md", p55],
+	["memories/sharpshooter-extract-system.md", p56],
+	["memories/stage_one_input.md", p57],
+	["memories/stage_one_system.md", p58],
+	["ratchet-kickoff.md", p59],
+	["review-custom-request.md", p60],
+	["review-headless-request.md", p61],
+	["review-request.md", p62],
+	["security/scan-coordinator.md", p63],
+	["security/scan-request.md", p64],
+	["security/validate-request.md", p65],
+	["session/launch-completion.md", p66],
+	["session/transfer-arrived.md", p67],
+	["session/transfer-departed.md", p68],
+	["session/transfer-stale-fork.md", p69],
+	["skills/autoload.md", p70],
+	["skills/compress-description.md", p71],
+	["skills/user-invocation.md", p72],
+	["spotlight/intent-field.md", p73],
+	["spotlight/intent-guidance.md", p74],
+	["spotlight/shape-probe.md", p75],
+	["spotlight/shape-rule.md", p76],
+	["steering/parent-irc.md", p77],
+	["steering/user-interjection.md", p78],
+	["system/active-repo-context.md", p79],
+	["system/agent-creation-architect.md", p80],
+	["system/agent-creation-user.md", p81],
+	["system/anthropic-usage-wrap-up.md", p82],
+	["system/auto-continue.md", p83],
+	["system/auto-parallel.md", p84],
+	["system/autolearn-capture-refused.md", p85],
+	["system/autolearn-guidance-learn.md", p86],
+	["system/autolearn-guidance.md", p87],
+	["system/autolearn-nudge-autocontinue.md", p88],
+	["system/background-tan-dispatch.md", p89],
+	["system/browser-relay.md", p90],
+	["system/btw-user.md", p91],
+	["system/checkpoint-active-notice.md", p92],
+	["system/chillax-notice.md", p93],
+	["system/commit-message-system.md", p94],
+	["system/composer-prediction-user.md", p95],
+	["system/computer-use.md", p96],
+	["system/context-notes.md", p97],
+	["system/custom-system-prompt.md", p98],
+	["system/date-cwd-reminder.md", p99],
+	["system/eager-task.md", p100],
+	["system/eager-todo.md", p101],
+	["system/empty-stop-retry.md", p102],
+	["system/eval-prelude-notice.md", p103],
+	["system/eval-state-context.md", p104],
+	["system/experimental-context-notes-reminder.md", p105],
+	["system/experimental-context-rollover.md", p106],
+	["system/gemini-tool-call-reminder.md", p107],
+	["system/hindsight-instructions.md", p108],
+	["system/image-attachment.md", p109],
+	["system/interrupted-thinking.md", p110],
+	["system/irc-incoming.md", p111],
+	["system/jevify-notice.md", p112],
+	["system/job-caption-system.md", p113],
+	["system/job-caption-user.md", p114],
+	["system/job-widget-system.md", p115],
+	["system/job-widget-user.md", p116],
+	["system/judgment-local.md", p117],
+	["system/length-stop-retry.md", p118],
+	["system/malformed-function-call-retry.md", p119],
+	["system/manual-continue.md", p120],
+	["system/mcp-xdev-guidance.md", p121],
+	["system/memory-consolidation-system.md", p122],
+	["system/memory-extraction-system.md", p123],
+	["system/memory-recall-changes.md", p124],
+	["system/mid-run-todo-nudge.md", p125],
+	["system/mnemopi-instructions.md", p126],
+	["system/omfg-user.md", p127],
+	["system/orchestrate-notice.md", p128],
+	["system/personalities/default.md", p129],
+	["system/personalities/friendly.md", p130],
+	["system/personalities/pragmatic.md", p131],
+	["system/plan-filename.md", p132],
+	["system/plan-mode-active.md", p133],
+	["system/plan-mode-approved.md", p134],
+	["system/plan-mode-compact-instructions.md", p135],
+	["system/plan-mode-reference.md", p136],
+	["system/plan-mode-subagent.md", p137],
+	["system/plan-mode-tool-decision-reminder.md", p138],
+	["system/plan-yolo-handoff.md", p139],
+	["system/prewalk-checklist.md", p140],
+	["system/prewalk-continue.md", p141],
+	["system/prewalk-plan.md", p142],
+	["system/project-prompt.md", p143],
+	["system/recap-user.md", p144],
+	["system/resolve-device-reminder.md", p145],
+	["system/rewind-report.md", p146],
+	["system/seance-assignment.md", p147],
+	["system/seance-command-solution-space.md", p148],
+	["system/seance-command.md", p149],
+	["system/session-agent-notice.md", p150],
+	["system/session-stop-blocked.md", p151],
+	["system/side-channel-no-tools.md", p152],
+	["system/skill-notice.md", p153],
+	["system/skillful-notice.md", p154],
+	["system/snapcompact-context-frames-note.md", p155],
+	["system/snapcompact-context-stub.md", p156],
+	["system/snapcompact-read-note.md", p157],
+	["system/snapcompact-system-frames-note.md", p158],
+	["system/snapcompact-system-stub.md", p159],
+	["system/snapcompact-toolresult-note.md", p160],
+	["system/speech-rewrite.md", p161],
+	["system/stream-stall-continue.md", p162],
+	["system/streaming-edit-recovery.md", p163],
+	["system/subagent-async-pending.md", p164],
+	["system/subagent-completion-probe.md", p165],
+	["system/subagent-step.md", p166],
+	["system/subagent-steps-brief.md", p167],
+	["system/subagent-system-prompt.md", p168],
+	["system/subagent-user-prompt.md", p169],
+	["system/subagent-yield-reminder.md", p170],
+	["system/system-prompt.md", p171],
+	["system/tan-context-switch.md", p172],
+	["system/task-label.md", p173],
+	["system/thinking-loop-redirect.md", p174],
+	["system/title-card.md", p175],
+	["system/title-fork.md", p176],
+	["system/title-marker-instruction.md", p177],
+	["system/title-system.md", p178],
+	["system/tool-call-loop-redirect.md", p179],
+	["system/tool-roster-notice.md", p180],
+	["system/ttsr-interrupt.md", p181],
+	["system/ttsr-tool-reminder.md", p182],
+	["system/ttsr-warning.md", p183],
+	["system/ultrathink-notice.md", p184],
+	["system/unexpected-stop-retry.md", p185],
+	["system/user-append.md", p186],
+	["system/vibe-mode-active.md", p187],
+	["system/video-attachment.md", p188],
+	["system/web-search.md", p189],
+	["system/workflow-notice.md", p190],
+	["system/x-read.md", p191],
+	["system/xdev-mount-notice.md", p192],
+	["tools/agent-url-progress.md", p193],
+	["tools/agent-url-superseded.md", p194],
+	["tools/approval-folder.md", p195],
+	["tools/approve.md", p196],
+	["tools/archive.md", p197],
+	["tools/ask-headless-fork.md", p198],
+	["tools/ask-result.md", p199],
+	["tools/ask.md", p200],
+	["tools/ast-edit.md", p201],
+	["tools/ast-grep.md", p202],
+	["tools/async-result.md", p203],
+	["tools/bash.md", p204],
+	["tools/browser.md", p205],
+	["tools/cfg-approval-timeout.md", p206],
+	["tools/cfg-env-shadowed.md", p207],
+	["tools/cfg-write-result.md", p208],
+	["tools/checkpoint.md", p209],
+	["tools/computer-escape-after-call.md", p210],
+	["tools/computer-escape-refused.md", p211],
+	["tools/computer-escape-stopped.md", p212],
+	["tools/computer-screen-locked-capture.md", p213],
+	["tools/computer-screen-state.md", p214],
+	["tools/computer-secure-input.md", p215],
+	["tools/computer.md", p216],
+	["tools/context-notes-text.md", p217],
+	["tools/context-notes.md", p218],
+	["tools/debug.md", p219],
+	["tools/eval-agents.md", p220],
+	["tools/eval-helpers.md", p221],
+	["tools/eval-judge.md", p222],
+	["tools/eval.md", p223],
+	["tools/find-spotlight-probe.md", p224],
+	["tools/find-spotlight-task.md", p225],
+	["tools/find.md", p226],
+	["tools/github.md", p227],
+	["tools/glob.md", p228],
+	["tools/goal.md", p229],
+	["tools/grep.md", p230],
+	["tools/ida.md", p231],
+	["tools/image-attachment-describe-system.md", p232],
+	["tools/image-attachment-describe.md", p233],
+	["tools/image-gen.md", p234],
+	["tools/image-question-system.md", p235],
+	["tools/isolation-error.md", p236],
+	["tools/isolation-recovery-hint.md", p237],
+	["tools/isolation-summary.md", p238],
+	["tools/learn.md", p239],
+	["tools/lsp-late-diagnostic.md", p240],
+	["tools/lsp.md", p241],
+	["tools/manage-skill.md", p242],
+	["tools/memory-edit.md", p243],
+	["tools/native-delegation.md", p244],
+	["tools/new-context.md", p245],
+	["tools/pdf-text-incomplete.md", p246],
+	["tools/ratchet.md", p247],
+	["tools/read-sources.md", p248],
+	["tools/read.md", p249],
+	["tools/recall.md", p250],
+	["tools/reflect.md", p251],
+	["tools/retain.md", p252],
+	["tools/rewind.md", p253],
+	["tools/rewrite.md", p254],
+	["tools/salvaged-child-hint.md", p255],
+	["tools/seance-task-guidance.md", p256],
+	["tools/security-publish.md", p257],
+	["tools/security-scan.md", p258],
+	["tools/task-async-contract.md", p259],
+	["tools/task-coordination-advisory.md", p260],
+	["tools/task-follow-up.md", p261],
+	["tools/task-spawn-feedback.md", p262],
+	["tools/task-specialization-advisory.md", p263],
+	["tools/task-summary.md", p264],
+	["tools/task.md", p265],
+	["tools/todo.md", p266],
+	["tools/tts.md", p267],
+	["tools/vibe-kill.md", p268],
+	["tools/vibe-list.md", p269],
+	["tools/vibe-send.md", p270],
+	["tools/vibe-spawn.md", p271],
+	["tools/vibe-turn-result.md", p272],
+	["tools/vibe-wait.md", p273],
+	["tools/wait-idle.md", p274],
+	["tools/wait.md", p275],
+	["tools/web-search.md", p276],
+	["tools/workpool-batch.md", p277],
+	["tools/workpool-turn-result.md", p278],
+	["tools/write-device-only-refusal.md", p279],
+	["tools/write-device-only.md", p280],
+	["tools/write.md", p281],
+	["tools/yield-data-error-conflict.md", p282],
+	["tools/yield.md", p283],
 ]);
