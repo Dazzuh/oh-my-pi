@@ -21,6 +21,7 @@ import { TtsrNotificationComponent } from "@oh-my-pi/pi-tui/chat/ttsr-notificati
 import { CollapsedSyntheticMessageComponent, UserMessageComponent } from "@oh-my-pi/pi-tui/chat/user-message";
 import { card, node, text } from "@oh-my-pi/pi-tui/native/describe";
 import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
+import type { DescribeContext } from "@oh-my-pi/pi-tui/native/node";
 import {
 	messageBlock,
 	onTranscriptPresentationRedrawn,
@@ -986,7 +987,7 @@ describe("native transcript", () => {
 				"omp.marker.cache-miss",
 				"omp.status-block",
 				"omp.advisor",
-				// Not `omp.advisor`: Tern 0.9.18's chat reader draws no top-level node with that role.
+				// Not `omp.advisor`: a Tern plugin may hide that role, and marks must stay visible.
 				"omp.advisor.mark",
 			]),
 		);
@@ -1007,5 +1008,27 @@ describe("background job completion rows", () => {
 			),
 		);
 		expect(Bun.stripANSI(block.render(120).join("\n"))).toContain("Minimized: git 27.6KB → 9.5KB");
+	});
+});
+
+describe("advisor card fold", () => {
+	it("clamps a collapsed card with more notes than the fold shows, and opens fully when toggled", () => {
+		const notes = ["one", "two", "three", "four"].map(note => ({ note, severity: "nit" as const }));
+		const advisorCard = createAdvisorMessageCard({ notes }, () => false, theme, { marks: true });
+		const cx: DescribeContext = {
+			cols: 80,
+			reduceMotion: false,
+			dark: true,
+			supports: () => true,
+			feature: () => true,
+		};
+		// Tern's "auto" preview is 10 lines, so four one-line notes never folded; the clamp must be tighter.
+		expect(advisorCard.describe?.(cx)?.p).toMatchObject({
+			collapsible: true,
+			collapsed: true,
+			preview: { lines: 3 },
+		});
+		advisorCard.handleNativeEvent({ type: "toggle", key: "", collapsed: false });
+		expect(advisorCard.describe?.(cx)?.p).toMatchObject({ collapsed: false });
 	});
 });

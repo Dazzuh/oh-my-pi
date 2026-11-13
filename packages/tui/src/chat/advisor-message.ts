@@ -270,13 +270,18 @@ export function createAdvisorMessageCard(
 		});
 		return card(
 			{
-				// Tern 0.9.18's chat reader never draws a top-level `omp.advisor` node; marks exist
-				// only for the user, so they take their own role and stay visible there.
+				// Marks get their own role: a Tern plugin may hide `omp.advisor` cards to show advisor
+				// notes elsewhere, and a mark exists only for the user, so it must stay in the transcript.
 				role: marks ? "omp.advisor.mark" : "omp.advisor",
 				tone: look.tone,
 				collapsible: notes.length > COLLAPSED_NOTES,
 				collapsed: notes.length > COLLAPSED_NOTES ? !isExpanded : undefined,
-				preview: notes.length > COLLAPSED_NOTES ? "auto" : undefined,
+				// `"auto"` previews 10 lines, which fits a few short notes whole, so the fold changed nothing.
+				// Clamp to the TUI's collapsed budget instead: Tern adds an "N more lines" button below it.
+				preview:
+					notes.length > COLLAPSED_NOTES
+						? { lines: chatTranscriptDisplayPreferences.advisorCollapsedLines || COLLAPSED_NOTES }
+						: undefined,
 			},
 			[head, ...body],
 		);
@@ -300,7 +305,9 @@ export function createAdvisorMessageCard(
 		},
 		describe(): NativeNode {
 			const isExpanded = expanded();
-			return nativeMemo.get([isExpanded], () => describeCard(isExpanded));
+			return nativeMemo.get([isExpanded, chatTranscriptDisplayPreferences.advisorCollapsedLines], () =>
+				describeCard(isExpanded),
+			);
 		},
 		setExpanded(value: boolean): void {
 			lastGlobal = value;
