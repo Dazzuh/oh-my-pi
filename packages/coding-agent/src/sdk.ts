@@ -86,7 +86,7 @@ import {
 	sessionModelDiscoveryProviders,
 } from "./config/model-resolver";
 import { formatModelSelectorValue, parseModelString } from "@oh-my-pi/pi-tui/overlays/model-selector";
-import { loadPromptOverrides } from "./config/prompt-overrides";
+import { loadPromptOverrides, resolvePromptOverrides } from "./config/prompt-overrides";
 import { loadPromptTemplates as loadPromptTemplatesInternal, type PromptTemplate } from "./config/prompt-templates";
 import { buildServiceTierByFamily } from "./config/service-tier";
 import { bindEffects, combine } from "./config/registry";
@@ -4631,12 +4631,11 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		}
 
 		setSessionActiveToolNames(initialToolNames);
-		const { systemPrompt, sources: systemPromptSources } = await logger.time(
-			"buildSystemPrompt",
-			rebuildSystemPrompt,
-			initialToolNames,
-			toolRegistry,
-			toolSession.xdev,
+		// The first prompt renders with the overrides of the model it is built for, as later rebuilds do.
+		const initialPromptOverrides = resolvePromptOverrides(model ? formatModelString(model) : undefined);
+		const { systemPrompt, sources: systemPromptSources } = await prompt.withTemplateOverrides(
+			() => initialPromptOverrides,
+			() => logger.time("buildSystemPrompt", rebuildSystemPrompt, initialToolNames, toolRegistry, toolSession.xdev),
 		);
 
 		const promptTemplates = await promptTemplatesPromise;

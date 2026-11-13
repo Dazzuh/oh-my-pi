@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { LRUCache } from "./lru";
 import type { HelperDelegate, Template } from "./template";
 import * as Handlebars from "./template";
@@ -571,17 +572,17 @@ export function registerPartial(name: string, fn: Template): void {
 
 // Bundled template text -> the user's replacement source; empty unless overrides were registered.
 let templateOverrides: ReadonlyMap<string, string> = new Map();
+// A set chosen for the work running in this async context (one session's model); wins over the registered set.
+const scopedTemplateOverrides = new AsyncLocalStorage<() => ReadonlyMap<string, string>>();
 
 /**
  * Register replacements for bundled prompt texts: each key is a bundled template's exact text and its
  * value the source to use instead. {@link compile}, {@link render} and {@link renderTracked} apply them,
  * and {@link overridden} serves text a caller uses without rendering. Replaces the previous set; an empty
- * map restores the bundled texts.
+ * map restores the bundled texts. Work inside {@link withTemplateOverrides} uses that set instead.
  */
 export function setTemplateOverrides(overrides: ReadonlyMap<string, string>): void {
 	templateOverrides = overrides;
-	compiledTemplateCache.clear();
-	compiledMarkedCache.clear();
 }
 
 /** The registered overrides, for handing to another thread that renders the same prompts. */
@@ -589,22 +590,33 @@ export function getTemplateOverrides(): ReadonlyMap<string, string> {
 	return templateOverrides;
 }
 
-/** The registered replacement for a bundled prompt text, or the text itself. */
+/**
+ * Run `work` with the set `overrides()` returns in place of the registered one, for every render in its
+ * async context (including the awaits and callbacks it starts). The getter is read on each lookup, so the
+ * caller can switch sets for work already running. Frames nest; the innermost wins.
+ */
+export function withTemplateOverrides<T>(overrides: () => ReadonlyMap<string, string>, work: () => T): T {
+	return scopedTemplateOverrides.run(overrides, work);
+}
+
+/** The replacement for a bundled prompt text in the current set, or the text itself. */
 export function overridden(text: string): string {
-	return templateOverrides.get(text) ?? text;
+	const overrides = scopedTemplateOverrides.getStore()?.() ?? templateOverrides;
+	return overrides.get(text) ?? text;
 }
 
 // Bounded: some callers compile template text that already embeds user arguments.
 const compiledTemplateCache = new LRUCache<string, (context: TemplateContext) => string>({ max: 256 });
 
 export function compile(template: string): (context: TemplateContext) => string {
-	// Keyed on the raw template so repeat renders skip parsing.
-	const cached = compiledTemplateCache.get(template);
+	// Keyed on the source actually compiled, so override sets in different scopes share one cache.
+	const source = overridden(template);
+	const cached = compiledTemplateCache.get(source);
 	if (cached) return cached;
-	const compiled = handlebars.compile(overridden(template), { noEscape: true, strict: false }) as (
+	const compiled = handlebars.compile(source, { noEscape: true, strict: false }) as (
 		context: TemplateContext,
 	) => string;
-	compiledTemplateCache.set(template, compiled);
+	compiledTemplateCache.set(source, compiled);
 	return compiled;
 }
 
@@ -640,10 +652,11 @@ const compiledMarkedCache = new LRUCache<string, Handlebars.MarkedTemplateDelega
  * range is known by construction. Other iterations are formatted in place and not reported.
  */
 export function renderTracked(template: string, context: TemplateContext, items: readonly object[]): TrackedRender {
-	let compiled = compiledMarkedCache.get(template);
+	const source = overridden(template);
+	let compiled = compiledMarkedCache.get(source);
 	if (!compiled) {
-		compiled = handlebars.compileMarked<TemplateContext>(overridden(template), { noEscape: true, strict: false });
-		compiledMarkedCache.set(template, compiled);
+		compiled = handlebars.compileMarked<TemplateContext>(source, { noEscape: true, strict: false });
+		compiledMarkedCache.set(source, compiled);
 	}
 	const itemIndex = new Map<unknown, number>(items.map((item, index) => [item, index]));
 	const { text: raw, marks } = compiled(context ?? {}, new Set(items));

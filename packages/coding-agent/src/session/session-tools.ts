@@ -8,6 +8,7 @@ import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldInlineToolDescriptors } from "../config/inline-tool-descriptors-mode";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
+import { resolvePromptOverrides } from "../config/prompt-overrides";
 import type { Settings } from "../config/settings";
 import type { CustomTool, CustomToolContext } from "../extensibility/custom-tools/types";
 import { clearPluginRootsAndCaches } from "../discovery/helpers";
@@ -377,6 +378,8 @@ interface PromptSurface {
 	evalToolNames: readonly string[];
 	/** Per-call model roles the task/eval descriptions advertise (mid-session role edits). */
 	perCallModelAdvertisement: PerCallModelAdvertisement;
+	/** Prompt overrides for the model the prompt is rendered for (`prompt-overrides/models/<key>/`). */
+	promptOverrides: ReadonlyMap<string, string>;
 }
 
 /**
@@ -829,6 +832,34 @@ export class SessionTools {
 		return (this.#promptSurfaceScope.getStore() ?? this.#promptSurface).evalToolNames;
 	}
 
+	/**
+	 * Prompt overrides the session renders with: the committed prompt's model's
+	 * set (see {@link #promptSurface}); the candidate's inside a rebuild frame.
+	 * Every render in the session's runs reads this, so tool descriptions and
+	 * the system prompt use the same files until a rebuild commits another model.
+	 */
+	get promptOverrides(): ReadonlyMap<string, string> {
+		return (this.#promptSurfaceScope.getStore() ?? this.#promptSurface).promptOverrides;
+	}
+
+	readonly #readPromptOverrides = (): ReadonlyMap<string, string> => this.promptOverrides;
+
+	/** Run `work` with the session's prompt overrides: renders outside an agent run (a `/model` rebuild) use them too. */
+	inPromptOverrides<T>(work: () => T): T {
+		return prompt.withTemplateOverrides(this.#readPromptOverrides, work);
+	}
+
+	/** Run a render or signature computation against `surface`, its overrides included. */
+	#inPromptSurface<T>(surface: PromptSurface, work: () => T): T {
+		return this.#promptSurfaceScope.run(surface, () => this.inPromptOverrides(work));
+	}
+
+	/** Overrides for the active model, from the files loaded at session start. */
+	#currentPromptOverrides(): ReadonlyMap<string, string> {
+		const activeModel = this.#host.model();
+		return resolvePromptOverrides(activeModel ? formatModelString(activeModel) : undefined);
+	}
+
 	/** Derives the candidate surface from live state without publishing it. */
 	#derivePromptSurface(): PromptSurface {
 		return {
@@ -836,6 +867,7 @@ export class SessionTools {
 			evalPreludes: this.#host.evalPreludes(),
 			sessionAgents: this.#host.sessionAgents(),
 			evalToolNames: this.getEvalBridgeToolNames(),
+			promptOverrides: this.#currentPromptOverrides(),
 			perCallModelAdvertisement: getPerCallModelAdvertisement(
 				this.#host.settings,
 				this.#host.model(),
@@ -1164,13 +1196,15 @@ export class SessionTools {
 	 * and the provider then wrote the whole cached conversation again on every hop. It still rebuilds
 	 * when the hop changes what the request must carry for the new model: the edit-mode policy
 	 * (#11983), the inline-descriptor decision, which also turns provider-side description pruning
-	 * on or off (#14200), or the `systemPromptTemplates` entry the model selects. The kept key makes a
-	 * later switch back to the rendered model a no-op, and a deliberate switch (`/model`, `setModel`)
-	 * compares against the model the prompt describes.
+	 * on or off (#14200), the `systemPromptTemplates` entry the model selects, or the model-scoped
+	 * prompt overrides it selects. The kept key makes a later switch back to the rendered model a no-op,
+	 * and a deliberate switch (`/model`, `setModel`) compares against the model the prompt describes.
 	 */
 	async syncAfterModelChange(previousEditMode: EditModeSetting, options?: { retryFallback?: boolean }): Promise<void> {
 		const currentEditMode = this.resolveActiveEditMode();
-		const templateChanged = this.#currentPromptTemplate() !== this.#promptTemplate;
+		const templateChanged =
+			this.#currentPromptTemplate() !== this.#promptTemplate ||
+			this.#currentPromptOverrides() !== this.#promptSurface.promptOverrides;
 		if (options?.retryFallback) {
 			const inlineDescriptorsChanged = this.#currentInlineDescriptors() !== this.#promptInlineDescriptors;
 			if (previousEditMode !== currentEditMode || inlineDescriptorsChanged || templateChanged) {
@@ -1584,7 +1618,7 @@ export class SessionTools {
 				// frame until the commit below.
 				const candidate = this.#derivePromptSurface();
 				const computeSignature = (surface: PromptSurface): string =>
-					this.#promptSurfaceScope.run(surface, () =>
+					this.#inPromptSurface(surface, () =>
 						this.#computeAppliedToolSignature(validToolNames, tools, mountedSignatureTools),
 					);
 				// Eval-prelude, eval tool-name, model-mention and per-call-model advertisement
@@ -1608,7 +1642,7 @@ export class SessionTools {
 					const signature = computeSignature(candidate);
 					const built = await untilAborted(
 						signal,
-						this.#promptSurfaceScope.run(candidate, () =>
+						this.#inPromptSurface(candidate, () =>
 							rebuildSystemPrompt(validToolNames, this.#toolRegistry, this.#xdev),
 						),
 					);
@@ -2568,7 +2602,7 @@ export class SessionTools {
 		// scope frame (not a rollback write) guarantees no clobbering of a newer
 		// winner.
 		const candidate = this.#derivePromptSurface();
-		const built = await this.#promptSurfaceScope.run(candidate, () =>
+		const built = await this.#inPromptSurface(candidate, () =>
 			rebuildSystemPrompt(activeToolNames, this.#toolRegistry, this.#xdev),
 		);
 		const promptTools = activeToolNames
@@ -2578,7 +2612,7 @@ export class SessionTools {
 			const tool = this.#toolRegistry.get(name);
 			return tool ? [tool] : [];
 		});
-		const signature = this.#promptSurfaceScope.run(candidate, () =>
+		const signature = this.#inPromptSurface(candidate, () =>
 			this.#computeAppliedToolSignature(activeToolNames, promptTools, mountedSignatureTools),
 		);
 		return {
@@ -2635,7 +2669,7 @@ export class SessionTools {
 			evalToolNames: this.#promptSurface.evalToolNames,
 			perCallModelAdvertisement: this.#promptSurface.perCallModelAdvertisement,
 		};
-		const built = await this.#promptSurfaceScope.run(candidate, () =>
+		const built = await this.#inPromptSurface(candidate, () =>
 			rebuildSystemPrompt(roster.toolNames, roster.tools, roster.xdev),
 		);
 		if (!samePromptBlocks(built.systemPrompt, previousBaseSystemPrompt)) return undefined;

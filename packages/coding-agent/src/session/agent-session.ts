@@ -2809,6 +2809,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				return sessionManager.getSessionId();
 			},
 		};
+		// Renders during a run use the prompt overrides of the model the session's prompt was built for.
+		this.agent.runScope = work => this.#tools.inPromptOverrides(work);
 		this.#syncAgentSessionId();
 		this.#todo.syncFromBranch();
 		this.#modelMentions.syncFromBranch();
@@ -3732,9 +3734,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return this.#admittedSubmissionsSettled.promise;
 	}
 
-	/** Run session work outside an agent run (prompt setup, manual maintenance) under the agent's log context. */
+	/**
+	 * Run session work outside an agent run (prompt setup, manual maintenance) under the agent's log
+	 * context and the session's prompt overrides.
+	 */
 	#inLogContext<T>(work: () => T): T {
-		return this.agent.logContext ? logger.withContext(this.agent.logContext, work) : work();
+		const logContext = this.agent.logContext;
+		return this.#tools.inPromptOverrides(() => (logContext ? logger.withContext(logContext, work) : work()));
 	}
 
 	async #admitSubmission<T>(work: () => Promise<T>): Promise<T> {

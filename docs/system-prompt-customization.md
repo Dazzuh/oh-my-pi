@@ -240,11 +240,19 @@ Only the agent directory is checked (`~/.omp/agent` by default; profile- and XDG
 - An override is Handlebars source rendered with the same data and helpers as the file it replaces (`{{cwd}}`, `{{#if subagent}}`, `{{#has tools "read"}}`, …). Keep the placeholders and blocks the bundled file uses, or the generated content they insert goes missing.
 - Covered: every bundled tool description and every prompt omp renders as a template, including `system/system-prompt.md` (when no `SYSTEM.md`, `SYSTEM_TEMPLATE.md` or template flag selects another block 0) and `system/project-prompt.md`. Not covered: prompts omp inserts verbatim without rendering them, such as the internal-URL reference texts, personality presets, and some notices and side-task prompts (auto-learn guidance, memory and compression system prompts). Overrides for those files load without error but do not change what the model sees.
 - Per file, a project override beats a user override, which beats the bundled prompt. The project directory is the nearest non-empty `.omp/` from the working directory up to the repository root (or home), the same lookup as project `SYSTEM.md`.
-- The set is chosen when the main session starts. Its task subagents render with the same files, wherever they run (including another directory through `task.cwd`); templates can branch on `{{#if subagent}}`.
+- A file under `prompt-overrides/models/<key>/` replaces the prompt only for models whose `provider/id` contains `<key>` (case-insensitive), the same substring matching as `systemPromptTemplates` and `edit.modelVariants`. Within a layer it comes before the plain file, and of several matching keys that have the file, the longest wins; a project file still beats a user file, model-scoped or not. Keys cannot contain `/`, so match on the model id (`claude-opus`, `haiku`) or the provider name alone (`anthropic`).
+
+  ```text
+  ~/.omp/agent/prompt-overrides/models/claude-opus/system/project-prompt.md   footer for Claude Opus models
+  ~/.omp/agent/prompt-overrides/models/haiku/tools/bash.md                    bash description for Haiku models
+  ```
+
+  Each session renders with the files of its own model: a task subagent on another model gets its model's files (or the plain ones), and a `/model` switch or retry fallback to a model with other files rebuilds the prompt with them. A model always gets the same bytes, so the prompt cache keeps hitting.
+- The set is chosen when the main session starts. Its task subagents render with the same files, wherever they run (including another directory through `task.cwd`), picking their own model's; templates can branch on `{{#if subagent}}`.
 - Files are read when the main session starts and kept for the process: every request carries the same bytes, so the provider prompt cache keeps hitting. Restart omp after editing them. The override set is process-wide; an SDK host that creates top-level sessions with different agent directories or projects in one process gets the set of the most recently started one.
 - A file whose path names no bundled prompt, an empty file, or one that does not parse as a template is ignored with a warning in the log, and the next layer down (user file, then bundled prompt) stays in use.
 - The user layer follows the agent directory (`~/.omp/agent` by default; profile- and `PI_CODING_AGENT_DIR`-aware). Only `.omp/` project directories are read, not `.claude/` or other config bases.
-- Without either directory, the prompt and tool descriptions are byte-identical to an omp without this feature.
+- Without either directory, the prompt and tool descriptions are byte-identical to an omp without this feature; a model no `models/<key>/` matches gets exactly the plain files.
 
 ### Customize automatic session titles
 

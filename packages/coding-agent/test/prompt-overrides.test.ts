@@ -2,17 +2,25 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { Context } from "@oh-my-pi/pi-ai";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
 import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
 import { BUNDLED_PROMPTS } from "@oh-my-pi/pi-coding-agent/config/bundled-prompts.generated";
 import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { loadPromptOverrides, PROMPT_OVERRIDES_DIR } from "@oh-my-pi/pi-coding-agent/config/prompt-overrides";
+import {
+	loadPromptOverrides,
+	PROMPT_OVERRIDES_DIR,
+	resolvePromptOverrides,
+} from "@oh-my-pi/pi-coding-agent/config/prompt-overrides";
 import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
 import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
 import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 import { FindTool } from "@oh-my-pi/pi-coding-agent/tools/jfind";
 import { Glob } from "bun";
 import { prompt, removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 const PROMPTS_DIR = path.join(import.meta.dir, "../src/prompts");
 
@@ -132,6 +140,95 @@ describe("prompt overrides", () => {
 		fs.mkdirSync(path.join(other, ".omp", "agents"), { recursive: true });
 		await loadPromptOverrides({ agentDir, cwd: other });
 		expect(prompt.overridden(BUNDLED_PROMPTS.get("tools/read.md")!)).toBe("User read.");
+	});
+
+	it("takes a model's files from its longest matching key, ahead of the plain file in that layer only", async () => {
+		const agentDir = makeAgentDir({
+			"tools/read.md": "User read.",
+			"models/claude/tools/read.md": "User claude read.",
+			"models/claude/tools/bash.md": "User claude bash.",
+			"models/Claude-Opus/tools/bash.md": "User opus bash.",
+			"models/Claude-Opus/tools/grep.md": "User opus grep.",
+			"models/stray.md": "Not under a key.",
+		});
+		const project = makeProject({
+			"tools/grep.md": "Project grep.",
+			"models/haiku/tools/find.md": "Project haiku find.",
+		});
+		const result = await loadPromptOverrides({ agentDir, cwd: project });
+		expect(result.skipped.map(entry => entry.path)).toEqual(["models/stray.md"]);
+
+		const text = (overrides: ReadonlyMap<string, string>, file: string): string => {
+			const bundled = BUNDLED_PROMPTS.get(file)!;
+			return overrides.get(bundled) ?? bundled;
+		};
+		const opus = resolvePromptOverrides("anthropic/claude-opus-4-5");
+		expect(text(opus, "tools/read.md")).toBe("User claude read.");
+		expect(text(opus, "tools/bash.md")).toBe("User opus bash.");
+		// A project file beats a user model file: layers come first, keys only inside a layer.
+		expect(text(opus, "tools/grep.md")).toBe("Project grep.");
+		expect(text(opus, "tools/find.md")).toBe(BUNDLED_PROMPTS.get("tools/find.md")!);
+
+		const haiku = resolvePromptOverrides("anthropic/claude-haiku-4-5");
+		expect(text(haiku, "tools/bash.md")).toBe("User claude bash.");
+		expect(text(haiku, "tools/find.md")).toBe("Project haiku find.");
+
+		// No key matches: the same set the process renders with outside any session.
+		const gpt = resolvePromptOverrides("openai/gpt-4o-mini");
+		expect(gpt).toBe(prompt.getTemplateOverrides());
+		expect(text(gpt, "tools/read.md")).toBe("User read.");
+		expect(resolvePromptOverrides("anthropic/claude-opus-4-5")).toBe(opus);
+	});
+
+	it("renders each session's requests with its own model's files, the same bytes every turn, until a model switch", async () => {
+		const opus = getBundledModel("anthropic", "claude-opus-4-5");
+		const haiku = getBundledModel("anthropic", "claude-haiku-4-5");
+		const dir = makeAgentDir({
+			"models/claude-opus/system/project-prompt.md": "<project-context>\nOpus footer\n</project-context>\n",
+			"models/claude-opus/tools/read.md": "Opus read.",
+		});
+		modelRegistry.authStorage.keys.setRuntime("anthropic", "test-key");
+		const { session: opusSession } = await createAgentSession({ ...sessionOptions(dir), model: opus });
+		// A second session in the same process, as an in-process subagent on another model runs.
+		const { session: haikuSession } = await createAgentSession({ ...sessionOptions(dir), model: haiku });
+		const capture = (session: AgentSession): Context[] => {
+			const requests: Context[] = [];
+			session.agent.streamFn = (_model, context) => {
+				requests.push(context);
+				const stream = new AssistantMessageEventStream();
+				const message = createAssistantMessage("done");
+				stream.push({ type: "done", reason: "stop", message });
+				stream.end(message);
+				return stream;
+			};
+			return requests;
+		};
+		const readDescription = (request: Context | undefined) =>
+			request?.tools?.find(tool => tool.name === "read")?.description ?? "";
+		try {
+			const opusRequests = capture(opusSession);
+			const haikuRequests = capture(haikuSession);
+			await Promise.all([opusSession.prompt("one"), haikuSession.prompt("one")]);
+			await opusSession.prompt("two");
+
+			const [first, second] = opusRequests;
+			expect(String(first?.systemPrompt)).toContain("Opus footer");
+			expect(readDescription(first)).toContain("Opus read.");
+			expect(second?.systemPrompt).toEqual(first?.systemPrompt);
+			expect(second?.tools?.map(tool => tool.description)).toEqual(first?.tools?.map(tool => tool.description));
+
+			expect(String(haikuRequests[0]?.systemPrompt)).not.toContain("Opus footer");
+			expect(String(haikuRequests[0]?.systemPrompt)).toContain("MUST default to informed action");
+			expect(readDescription(haikuRequests[0])).not.toContain("Opus read.");
+
+			await opusSession.setModel(haiku);
+			await opusSession.prompt("three");
+			expect(String(opusRequests[2]?.systemPrompt)).not.toContain("Opus footer");
+			expect(readDescription(opusRequests[2])).toBe(readDescription(haikuRequests[0]));
+		} finally {
+			await opusSession.dispose();
+			await haikuSession.dispose();
+		}
 	});
 
 	it("can override every bundled prompt file", () => {
