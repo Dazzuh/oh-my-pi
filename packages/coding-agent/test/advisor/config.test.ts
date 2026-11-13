@@ -639,3 +639,54 @@ describe("per-advisor syncBacklog override", () => {
 		expect(partial.warnings[0]).toContain('"Invalid Scope"');
 	});
 });
+
+describe("advisor mode and per-entry prompts", () => {
+	let tmp: string;
+	let agentDir: string;
+	beforeEach(async () => {
+		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-mode-"));
+		await fsp.mkdir(path.join(tmp, ".git"));
+		agentDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-mode-agentdir-"));
+	});
+	afterEach(async () => {
+		await fsp.rm(tmp, { recursive: true, force: true });
+		await fsp.rm(agentDir, { recursive: true, force: true });
+	});
+
+	it("keeps mode, systemPrompt and toolDescription through an editor save and reload", async () => {
+		const doc: WatchdogConfigDoc = {
+			advisors: [
+				{
+					name: "claims",
+					mode: "mark",
+					systemPrompt: "Proofread one reply.\nAt most {{max_notes_per_update}} marks.",
+					toolDescription: "Mark one unsupported sentence.",
+				},
+				{ name: "steer" },
+			],
+		};
+		const file = path.join(tmp, "WATCHDOG.yml");
+		await saveWatchdogConfigFile(file, doc);
+		expect(await loadWatchdogConfigFile(file)).toEqual(doc);
+	});
+
+	it("expands @imports in systemPrompt and drops an entry with an unknown mode", async () => {
+		await Bun.write(path.join(tmp, "claims", "system.md"), "Imported base prompt.");
+		const yaml = [
+			"advisors:",
+			"  - name: claims",
+			"    mode: mark",
+			"    systemPrompt: '@claims/system.md'",
+			"  - name: typo",
+			"    mode: marker",
+		].join("\n");
+		await Bun.write(path.join(tmp, "WATCHDOG.yml"), yaml);
+
+		const { advisors, warnings } = await discoverAdvisorConfigs(tmp, agentDir);
+		expect(advisors.map(a => [a.name, a.mode, a.systemPrompt])).toEqual([
+			["claims", "mark", "Imported base prompt."],
+		]);
+		expect(warnings).toHaveLength(1);
+		expect(warnings[0]).toContain('"typo"');
+	});
+});

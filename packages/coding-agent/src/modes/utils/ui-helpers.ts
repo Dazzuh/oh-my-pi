@@ -78,6 +78,7 @@ import type {
 import { extractVisibleAssistantText } from "../rpc/rpc-live";
 import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "../../session/launch-completion";
 import {
+	ADVISOR_MARK_MESSAGE_TYPE,
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
 	type CustomMessage,
 	isUserTurnInitiator,
@@ -376,10 +377,12 @@ export class UiHelpers {
 						this.ctx.chatContainer.addChild(card);
 						return [card];
 					}
-					if (message.customType === "advisor") {
+					if (message.customType === "advisor" || message.customType === ADVISOR_MARK_MESSAGE_TYPE) {
 						const details = (message as CustomMessage<AdvisorMessageDetails>).details;
 						const card = new PresentedBlock(
-							createAdvisorMessageCard(details, () => this.ctx.toolOutputExpanded, theme),
+							createAdvisorMessageCard(details, () => this.ctx.toolOutputExpanded, theme, {
+								marks: message.customType === ADVISOR_MARK_MESSAGE_TYPE,
+							}),
 							messageBlock(message),
 						);
 						card.setExpanded(this.ctx.toolOutputExpanded);

@@ -4,7 +4,7 @@ import type { MeterProvider } from "@opentelemetry/api";
 import { logger, prompt, sanitizeText } from "@oh-my-pi/pi-utils";
 import composerPredictionPrompt from "../../prompts/system/composer-prediction-user.md" with { type: "text" };
 import type { AgentViewSession } from "../../session/agent-session-handle";
-import { isAdvisorCard } from "../../session/queued-messages";
+import { isAdvisorOutput } from "../../session/queued-messages";
 import { cfgComposerPredictionAlternatives, cfgComposerPredictions } from "../settings";
 import type { InteractiveModeContext } from "../types";
 import {
@@ -39,13 +39,13 @@ const LIST_MARKER = /^\s*(?:[-*•]|\d{1,2}[.)])\s+/;
 const NON_WORD = /[^\p{L}\p{N}]+/gu;
 
 /**
- * The message a prediction is keyed on: the last one that is not an advisor card. Silent advisor
- * notes land after the turn without changing what the user would reply to.
+ * The message a prediction is keyed on: the last one that is not an advisor card or mark. Silent
+ * advisor notes land after the turn without changing what the user would reply to.
  */
 function predictionAnchor(session: AgentViewSession): AgentMessage | undefined {
 	const messages = session.messages;
 	for (let i = messages.length - 1; i >= 0; i--) {
-		if (!isAdvisorCard(messages[i])) return messages[i];
+		if (!isAdvisorOutput(messages[i])) return messages[i];
 	}
 	return undefined;
 }

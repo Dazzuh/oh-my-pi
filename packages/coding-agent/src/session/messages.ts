@@ -6,6 +6,7 @@
  */
 import { type AgentMessage, isProviderRefusalMessage } from "@oh-my-pi/pi-agent-core";
 import {
+	ADVISOR_MARK_MESSAGE_TYPE,
 	isUserInterruptAbort,
 	isCustomMessageContent,
 	type BashExecutionMessage,
@@ -17,6 +18,7 @@ import {
 	isUserTurnInitiator,
 } from "@oh-my-pi/pi-tui/chat/messages";
 export {
+	ADVISOR_MARK_MESSAGE_TYPE,
 	SKILL_PROMPT_MESSAGE_TYPE,
 	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
@@ -1183,6 +1185,8 @@ function convertOne(m: AgentMessage, interruptedNext: boolean): Message[] {
 			return out;
 		}
 		case "custom": {
+			// Marks are for the user only: they never reach the agent's model context.
+			if (m.customType === ADVISOR_MARK_MESSAGE_TYPE) return [];
 			if (!isCustomMessageContent(m.content)) return [];
 			if (isSteeringUserMessage(m)) {
 				const converted = convertMessageToLlm(wrapSteeringUserMessage(m));

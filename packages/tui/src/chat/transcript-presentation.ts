@@ -16,6 +16,7 @@ import type { DaemonSnapshot } from "../tools/daemon";
 import type { TranscriptBlock, TranscriptPresentation, TranscriptPresenter } from "./extension-types";
 import type { LateDiagnosticsFile } from "./late-diagnostics-message";
 import {
+	ADVISOR_MARK_MESSAGE_TYPE,
 	type AdvisorMessageDetails,
 	type BashExecutionMessage,
 	type CustomMessage,
@@ -438,11 +439,14 @@ function blockHead(block: WrappedTranscriptBlock): BlockHead {
 			: { terminal, name: "eval", role: "omp.eval", title: "Python", target: source };
 	}
 	switch (message.customType) {
-		case "advisor": {
+		case "advisor":
+		case ADVISOR_MARK_MESSAGE_TYPE: {
 			const notes = (message.details as AdvisorMessageDetails | undefined)?.notes ?? [];
 			const blockers = notes.filter(note => note.severity === "blocker").length;
 			const tally = `${countOf(notes.length, "note")}${blockers > 0 ? ` · ${countOf(blockers, "blocker")}` : ""}`;
-			return plainHead("advisor", "omp.advisor", "Advisor", tally);
+			return message.customType === "advisor"
+				? plainHead("advisor", "omp.advisor", "Advisor", tally)
+				: plainHead("advisor", "omp.advisor", "Marks", `${tally} · not sent to agent`);
 		}
 		case SKILL_PROMPT_MESSAGE_TYPE: {
 			const name = (message.details as SkillPromptDetails | undefined)?.name?.trim() || "unknown";

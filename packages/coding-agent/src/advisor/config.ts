@@ -8,6 +8,7 @@ import { BUILTIN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
 import { collectConfigCandidates } from "./watchdog";
 
 import {
+	ADVISOR_MODES,
 	ADVISOR_SESSION_SCOPES,
 	ADVISOR_SYNC_BACKLOG_MODES,
 	type AdvisorConfig,
@@ -17,11 +18,13 @@ import {
 } from "@oh-my-pi/pi-tui/overlays/advisor-config";
 
 export {
+	ADVISOR_MODES,
 	ADVISOR_REVIEW_MODES,
 	ADVISOR_SESSION_SCOPES,
 	ADVISOR_SYNC_BACKLOG_MODES,
 } from "@oh-my-pi/pi-tui/overlays/advisor-config";
 export type {
+	AdvisorMode,
 	AdvisorReviewMode,
 	AdvisorSessionScope,
 	AdvisorSyncBacklog,
@@ -59,6 +62,7 @@ export interface DiscoveredAdvisors {
 const reviewIntervalSchema = type("1 <= number.integer <= 9007199254740991");
 const syncBacklogSchema = type.enumerated(...ADVISOR_SYNC_BACKLOG_MODES);
 const sessionScopeSchema = type.enumerated(...ADVISOR_SESSION_SCOPES);
+const advisorModeSchema = type.enumerated(...ADVISOR_MODES);
 const syncBacklogEntrySchema = type.enumerated(...ADVISOR_SYNC_BACKLOG_MODES, 1, 3, 5);
 const SYNC_BACKLOG_NUMERIC_THRESHOLDS = { 1: "1", 3: "3", 5: "5" } as const;
 
@@ -80,6 +84,9 @@ const advisorEntrySchema = type({
 	"maxNotesPerUpdate?": "number",
 	"scope?": sessionScopeSchema,
 	"includeReasoning?": "boolean",
+	"mode?": advisorModeSchema,
+	"systemPrompt?": "string",
+	"toolDescription?": "string",
 });
 
 type AdvisorYamlEntry = typeof advisorEntrySchema.infer;
@@ -237,9 +244,9 @@ export async function discoverAdvisorConfigs(cwd: string, agentDir?: string): Pr
 
 		for (const entry of entries) {
 			const slug = slugifyAdvisorName(entry.name);
-			const entryInstructions = entry.instructions?.trim()
-				? (await expandAtImports(entry.instructions, item.path)).trim() || undefined
-				: undefined;
+			const expand = async (text: string | undefined): Promise<string | undefined> =>
+				text?.trim() ? (await expandAtImports(text, item.path)).trim() || undefined : undefined;
+			const entryInstructions = await expand(entry.instructions);
 			advisors.set(slug, {
 				name: entry.name,
 				model: entry.model?.trim() || undefined,
@@ -257,6 +264,9 @@ export async function discoverAdvisorConfigs(cwd: string, agentDir?: string): Pr
 				scope: entry.scope,
 				includeReasoning: entry.includeReasoning,
 				instructions: entryInstructions,
+				mode: entry.mode,
+				systemPrompt: await expand(entry.systemPrompt),
+				toolDescription: await expand(entry.toolDescription),
 			});
 		}
 	}
@@ -346,6 +356,9 @@ export async function loadWatchdogConfigFile(filePath: string): Promise<Watchdog
 		}
 		if (a.scope !== undefined) advisor.scope = a.scope;
 		if (a.includeReasoning !== undefined) advisor.includeReasoning = a.includeReasoning;
+		if (a.mode !== undefined) advisor.mode = a.mode;
+		if (a.systemPrompt?.trim()) advisor.systemPrompt = a.systemPrompt;
+		if (a.toolDescription?.trim()) advisor.toolDescription = a.toolDescription;
 		return advisor;
 	});
 	const doc: WatchdogConfigDoc = { advisors };
@@ -435,6 +448,14 @@ export function serializeWatchdogConfig(doc: WatchdogConfigDoc): string {
 			}
 			if (advisor.includeReasoning !== undefined) {
 				lines.push(`    includeReasoning: ${advisor.includeReasoning}`);
+			}
+			if (advisor.mode !== undefined) {
+				advisorModeSchema.assert(advisor.mode);
+				lines.push(`    mode: ${YAML.stringify(advisor.mode)}`);
+			}
+			if (advisor.systemPrompt?.trim()) appendYamlString(lines, "    ", "systemPrompt", advisor.systemPrompt);
+			if (advisor.toolDescription?.trim()) {
+				appendYamlString(lines, "    ", "toolDescription", advisor.toolDescription);
 			}
 		}
 	}

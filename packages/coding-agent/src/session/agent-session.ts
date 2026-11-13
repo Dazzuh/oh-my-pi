@@ -445,6 +445,7 @@ import {
 import {
 	IMAGE_ATTACHMENT_DESCRIPTION_TYPE,
 	isAdvisorCard,
+	isAdvisorOutput,
 	isDisplayableQueuedMessage,
 	isHiddenUserCompanion,
 	isUserAuthoredQueuedMessage,
@@ -2880,7 +2881,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			sendCustomMessage: (message, options) => this.sendCustomMessage(message, options),
 			extractQueuedAdvisorCards: () => this.#extractQueuedAdvisorCards(),
 			dropPendingAdvisorCards: () => {
-				this.#pendingNextTurnMessages = this.#pendingNextTurnMessages.filter(message => !isAdvisorCard(message));
+				this.#pendingNextTurnMessages = this.#pendingNextTurnMessages.filter(message => !isAdvisorOutput(message));
 			},
 			preserveAdvisorCard: card => this.#preserveAdvisorCard(card),
 			hasPendingNextTurnMessages: () => this.#pendingNextTurnMessages.length > 0,
@@ -4201,7 +4202,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (event.type === "agent_end") this.#agentEndRunEpochs.set(event, this.#runEpoch);
 		if (event.type !== "agent_end") {
 			const processing = this.#processAgentEvent(event);
-			if ((event.type === "message_start" || event.type === "message_end") && isAdvisorCard(event.message)) {
+			if ((event.type === "message_start" || event.type === "message_end") && isAdvisorOutput(event.message)) {
 				this.#advisors.trackCardEvent(processing);
 			}
 			return processing;
@@ -12275,12 +12276,12 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			// already streaming must not get them spliced into its live stream: they ride that
 			// turn as follow-ups instead. A prompt still in its setup has sent nothing yet, so
 			// recording them now puts them ahead of it, as for any later prompt.
-			const parkedAdvisorCards = this.#pendingNextTurnMessages.filter(isAdvisorCard);
+			const parkedAdvisorCards = this.#pendingNextTurnMessages.filter(isAdvisorOutput);
 			if (parkedAdvisorCards.length > 0) {
-				this.#pendingNextTurnMessages = this.#pendingNextTurnMessages.filter(m => !isAdvisorCard(m));
+				this.#pendingNextTurnMessages = this.#pendingNextTurnMessages.filter(m => !isAdvisorOutput(m));
 			}
 			for (const message of [...strandedMessages, ...parkedAdvisorCards]) {
-				if (isAdvisorCard(message)) this.#preserveAdvisorCard(message);
+				if (isAdvisorOutput(message)) this.#preserveAdvisorCard(message);
 				else if (this.agent.state.isStreaming) {
 					// Requeued as ordinary work: a later abort must not take it out again.
 					this.#interruptWithdrawnMessages.delete(message);
