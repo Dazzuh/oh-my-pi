@@ -9,7 +9,8 @@
 ### Fixed
 
 - Marks from one advisor review show as one card instead of one card per note when the review lands after the agent has finished
-- Marks now show in Tern's chat view, which never draws advisor cards
+- Marks keep showing in Tern's chat view when a Tern plugin hides advisor cards there
+- A collapsed advisor or marks card in Tern now shows only its first lines, with a button to show the rest
 
 ## [18.20.0] - 2026-11-12
 
