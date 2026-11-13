@@ -15,6 +15,7 @@ import { runStructuredSubagent } from "@oh-my-pi/pi-coding-agent/task/structured
 import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
 import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { logger } from "@oh-my-pi/pi-utils";
 import { createSessionDefaults } from "../helpers/session-defaults";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -332,6 +333,95 @@ describe("autoloadSkills through task spawn", () => {
 					content: expect.stringContaining("Late skill body."),
 				}),
 				{ triggerTurn: false },
+			);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("resolves a relocated child's autoload names against the skills it discovers in its cwd", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cwd-skill-"));
+		try {
+			const parentDir = path.join(root, "parent");
+			const targetDir = path.join(root, "target");
+			const baseDir = path.join(targetDir, ".omp", "skills", "target-skill");
+			const filePath = path.join(baseDir, "SKILL.md");
+			await fs.mkdir(parentDir);
+			await fs.mkdir(baseDir, { recursive: true });
+			await Bun.write(
+				filePath,
+				"---\nname: target-skill\ndescription: Only in the target repo.\n---\n\nTarget skill body.\n",
+			);
+			const targetSkill: Skill = {
+				name: "target-skill",
+				description: "Only in the target repo.",
+				filePath,
+				baseDir,
+				source: "project",
+			};
+
+			const parent = {
+				cwd: parentDir,
+				hasUI: false,
+				settings: Settings.isolated({ "task.isolation.enabled": false }),
+				getSessionFile: () => null,
+				getSessionSpawns: () => "*",
+				getSessionAgents: () => [],
+				getPlanModeState: () => undefined,
+				skills: [],
+			} as unknown as ToolSession;
+
+			vi.spyOn(discoveryModule, "discoverAgents").mockResolvedValue({
+				agents: [
+					{
+						name: "cwd-agent",
+						description: "Autoloads a skill of its target repo",
+						systemPrompt: "test",
+						source: "user",
+						autoloadSkills: ["target-skill", "missing-skill"],
+					},
+				],
+				projectAgentsDir: null,
+			});
+			const child = createMockSession(({ emit }) => {
+				emit({
+					type: "tool_execution_end",
+					toolCallId: "tool-1",
+					toolName: "yield",
+					result: {
+						content: [{ type: "text", text: "Result submitted." }],
+						details: { status: "success", data: { ok: true } },
+					},
+					isError: false,
+				});
+			});
+			// The child's own discovery (from its cwd) found the target repo's skill.
+			Object.defineProperty(child, "skills", { value: [targetSkill] });
+			const createSession = vi.spyOn(sdkModule, "createAgentSession").mockResolvedValue(createSessionResult(child));
+			const warn = vi.spyOn(logger, "warn");
+
+			await runStructuredSubagent({
+				session: parent,
+				invocationKind: "task",
+				assignment: "do work",
+				agent: "cwd-agent",
+				cwd: targetDir,
+			});
+
+			const sessionOptions = createSession.mock.calls[0]?.[0];
+			expect(sessionOptions?.cwd).toBe(targetDir);
+			expect(sessionOptions?.skills).toBeUndefined();
+			expect(child.sendCustomMessage).toHaveBeenCalledTimes(1);
+			expect(child.sendCustomMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					customType: SKILL_PROMPT_MESSAGE_TYPE,
+					content: expect.stringContaining("Target skill body."),
+				}),
+				{ triggerTurn: false },
+			);
+			expect(warn).toHaveBeenCalledWith(
+				"Subagent autoload skill not found in its working directory",
+				expect.objectContaining({ agent: "cwd-agent", skill: "missing-skill", cwd: targetDir }),
 			);
 		} finally {
 			await fs.rm(root, { recursive: true, force: true });

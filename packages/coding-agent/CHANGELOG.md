@@ -113,6 +113,10 @@
 - Added an optional `cwd` on task spawns (`task.cwd` setting, off by default) to run a subagent in another directory or git repository, including with `isolated`.
 - Add a declarative YAML workload runner for ordered tasks and templated inputs. ([#12226](https://github.com/can1357/oh-my-pi/pull/12226) by [@Xytronix](https://github.com/Xytronix)).
 
+### Fixed
+
+- Fixed a task spawn with `cwd` ignoring the agent's `autoloadSkills`: they now load from the skills found in that directory, and a name not found there logs a warning
+
 ## [18.19.0] - 2026-11-12
 
 ### Breaking Changes

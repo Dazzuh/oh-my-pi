@@ -632,6 +632,12 @@ export interface ExecutorOptions {
 	/** Skills to autoload via sendCustomMessage before the first prompt */
 	autoloadSkills?: Skill[];
 	/**
+	 * Skill names to autoload, resolved against the child's own discovered skills once
+	 * its session exists. Set instead of `autoloadSkills` when the child discovers its
+	 * skills from another directory (`task` `cwd`); unresolved names log a warning.
+	 */
+	autoloadSkillNames?: readonly string[];
+	/**
 	 * Registry id of the spawning agent, recorded as this subagent's parent.
 	 * Forwarded verbatim to the SDK; the executor never derives it (the spawner
 	 * passes its own `getAgentId()`).
@@ -657,6 +663,28 @@ export interface ExecutorOptions {
 	deferIrcWakeRelease?: (release: () => void) => void;
 	/** Internal cleanup grace override for deterministic lifecycle tests. */
 	cleanupGraceMs?: number;
+}
+
+/** Resolve autoload skill names against the child's own skill list, warning on each name it lacks. */
+function resolveChildAutoloadSkills(
+	names: readonly string[] | undefined,
+	skills: readonly Skill[],
+	options: ExecutorOptions,
+): Skill[] {
+	const resolved: Skill[] = [];
+	for (const name of names ?? []) {
+		const skill = skills.find(candidate => candidate.name === name);
+		if (skill) {
+			resolved.push(skill);
+		} else {
+			logger.warn("Subagent autoload skill not found in its working directory", {
+				agent: options.agent.name,
+				skill: name,
+				cwd: options.cwd,
+			});
+		}
+	}
+	return resolved;
 }
 
 function parseStringifiedJson(value: unknown): unknown {
@@ -5359,8 +5387,10 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 
 			checkAbort();
 			// Autoload skills via sendCustomMessage (same mechanic as /skill:<name>)
-			if (options.autoloadSkills?.length) {
-				for (const skill of options.autoloadSkills) {
+			const autoloadSkills =
+				options.autoloadSkills ?? resolveChildAutoloadSkills(options.autoloadSkillNames, session.skills, options);
+			if (autoloadSkills.length) {
+				for (const skill of autoloadSkills) {
 					const { message, details } = await buildSkillPromptMessage(skill, { args: "" }, "autoload", session);
 					await session.sendCustomMessage(
 						{

@@ -900,8 +900,10 @@ function buildExecutorOptions(
 		contextFiles: relocated ? undefined : session.contextFiles,
 		noContextFiles: session.noContextFiles,
 		skills: relocated ? undefined : skills,
-		// Autoload runs after session start, outside the seance isolation options.
+		// Autoload runs after session start, outside the seance isolation options. A relocated
+		// child resolves the names against the skills it discovers for its own directory.
 		autoloadSkills: preparedSession || relocated ? undefined : autoloadSkills,
+		autoloadSkillNames: preparedSession || !relocated ? undefined : policy.agent.autoloadSkills,
 		workspaceTree: relocated ? undefined : session.workspaceTree,
 		promptTemplates: relocated ? undefined : session.promptTemplates,
 		rules: relocated ? undefined : session.rules,
@@ -1102,9 +1104,13 @@ export async function runStructuredSubagent(request: StructuredSubagentRequest):
 			...request.identity,
 			label: request.identity?.label ?? (request.invocationKind === "eval" ? "EvalAgent" : undefined),
 		});
-		if (policy.preparedSession === undefined) await refreshSkillsForAutoload(request.session, policy.agent);
+		const relocated = isRelocated(policy, request.session);
+		// A relocated child resolves autoload names against its own skills; the parent's list is not used.
+		if (policy.preparedSession === undefined && !relocated) {
+			await refreshSkillsForAutoload(request.session, policy.agent);
+		}
 		const baseOptions = buildExecutorOptions(request, policy, lease, id);
-		if (isRelocated(policy, request.session)) {
+		if (relocated) {
 			baseOptions.settings = await request.session.settings.cloneForCwd(policy.cwd);
 		}
 		baseOptions.onCleanupDeferred = completion => {
