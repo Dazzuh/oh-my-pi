@@ -3,14 +3,8 @@ name: Fork release (Windows x64)
 # Fork-only (Dazzuh/oh-my-pi); see docs/fork/README.md.
 #
 # A `v<upstream version>-dz.<n>` tag on `main` builds the Windows x64
-# single-file binary from this repository and publishes it with its SHA-256 as
-# a GitHub release. Nothing is published anywhere else.
-#
-# Native addon, prebuilt unless changed: when the fork's native inputs equal
-# upstream's `v<upstream version>` tag, the addon is upstream's published
-# `@oh-my-pi/pi-natives-win32-x64@<upstream version>` from npm (what upstream's
-# own PR CI falls back to). When they differ, it is built from crates/ with
-# Cargo, the target dir cached by a hash of those inputs.
+# single-file binary (fork-build-windows.yml) and publishes it with its
+# SHA-256 as a GitHub release. Nothing is published anywhere else.
 
 on:
    push:
@@ -21,32 +15,34 @@ on:
             description: "Existing release tag to (re)build, e.g. v18.19.0-dz.1"
             required: true
             type: string
+         dry_run:
+            description: "Build only; publish nothing (tests this workflow)"
+            required: false
+            type: boolean
+            default: false
 
 concurrency:
    group: fork-release-${{ inputs.tag || github.ref_name }}
    cancel-in-progress: false
 
 permissions:
-   contents: write
+   contents: read
 
 env:
    RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-   # Paths that decide the native addon's bytes; mirror these in the cache key below.
-   NATIVE_INPUTS: crates Cargo.toml Cargo.lock rust-toolchain.toml packages/natives BUILD.bazel
 
 jobs:
-   windows_x64:
-      name: Build and release omp-windows-x64.exe
-      runs-on: windows-2025
-      timeout-minutes: 150
-      defaults:
-         run:
-            shell: bash
+   check_tag:
+      name: Check tag
+      runs-on: ubuntu-22.04
+      outputs:
+         version: ${{ steps.tag.outputs.version }}
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
            with:
               ref: refs/tags/${{ env.RELEASE_TAG }}
               fetch-depth: 0
+              persist-credentials: false
 
          - name: Check tag
            id: tag
@@ -68,145 +64,39 @@ jobs:
                 echo "::error::$RELEASE_TAG ($(git rev-parse --short HEAD)) is not on main"
                 exit 1
               fi
-              echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
               echo "version=$upstream+dz.$n" >> "$GITHUB_OUTPUT"
 
-         - name: Compare native inputs with upstream
-           id: natives
-           env:
-              UPSTREAM_VERSION: ${{ steps.tag.outputs.upstream }}
-           run: |
-              set -euo pipefail
-              git fetch --no-tags --depth=1 https://github.com/can1357/oh-my-pi.git "refs/tags/v$UPSTREAM_VERSION:refs/upstream-tag"
-              if git diff --quiet refs/upstream-tag HEAD -- $NATIVE_INPUTS; then
-                echo "Native inputs match upstream v$UPSTREAM_VERSION: using the npm addon."
-                echo "source=npm" >> "$GITHUB_OUTPUT"
-              else
-                echo "Native inputs differ from upstream v$UPSTREAM_VERSION: building with Cargo."
-                git diff --stat refs/upstream-tag HEAD -- $NATIVE_INPUTS
-                echo "source=cargo" >> "$GITHUB_OUTPUT"
-              fi
+   build:
+      name: Build
+      needs: check_tag
+      uses: ./.github/workflows/fork-build-windows.yml
+      with:
+         ref: refs/tags/${{ inputs.tag || github.ref_name }}
+         version: ${{ needs.check_tag.outputs.version }}
 
-         # Before bun install, so hashFiles sees no packages/natives/node_modules.
-         - name: Restore Cargo cache
-           if: steps.natives.outputs.source == 'cargo'
-           id: cargo-cache
-           uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+   publish:
+      name: Publish GitHub release
+      needs: [check_tag, build]
+      if: ${{ !inputs.dry_run }}
+      runs-on: ubuntu-22.04
+      permissions:
+         contents: write
+      steps:
+         - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
            with:
-              path: |
-                 ~/.cargo/registry
-                 ~/.cargo/git
-                 target
-              key: cargo-win32-x64-baseline-${{ hashFiles('crates/**', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'packages/natives/**', 'BUILD.bazel') }}
-              restore-keys: |
-                 cargo-win32-x64-baseline-
+              name: omp-windows-x64
+              path: dist
 
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-           with:
-              bun-version: 1.4.4
-
-         - run: bun install --frozen-lockfile
-
-         - name: Fetch native addon (npm, win32-x64-baseline)
-           if: steps.natives.outputs.source == 'npm'
-           env:
-              UPSTREAM_VERSION: ${{ steps.tag.outputs.upstream }}
-           run: |
-              set -euo pipefail
-              tarball="$(npm view "@oh-my-pi/pi-natives-win32-x64@$UPSTREAM_VERSION" dist.tarball)"
-              echo "Fetching $tarball"
-              dest="$PWD/packages/natives/native"
-              # Relative paths: Git Bash's tar reads `D:\...` as a remote host.
-              mkdir -p "$RUNNER_TEMP/npm-addon" && cd "$RUNNER_TEMP/npm-addon"
-              curl -fsSL --retry 3 -o addon.tgz "$tarball"
-              tar -xzf addon.tgz
-              cp package/pi_natives.win32-x64-baseline.node "$dest/"
-              ls -l "$dest"/pi_natives.win32-x64-*.node
-
-         # rust-toolchain.toml pins the nightly; rustup installs it on first use.
-         # The local Cargo/N-API build names its output after the runner's CPU
-         # (`-modern` with AVX2), so pin the x86-64-v2 baseline ISA with the
-         # static CRT (what build-bindings.ts sets for a baseline host) and file
-         # the addon as upstream's `win32-x64-baseline`, the one addon upstream's
-         # win32-x64 release binary embeds.
-         - name: Build native addon (Cargo, win32-x64-baseline)
-           if: steps.natives.outputs.source == 'cargo'
-           env:
-              OMP_NATIVE_CARGO_PROFILE: ci
-              RUSTFLAGS: -C target-feature=+crt-static -C target-cpu=x86-64-v2
-           run: |
-              set -euo pipefail
-              rustup show active-toolchain || rustup toolchain install
-              bun run build:native
-              cd packages/natives/native
-              if [ -f pi_natives.win32-x64-modern.node ]; then
-                mv -f pi_natives.win32-x64-modern.node pi_natives.win32-x64-baseline.node
-              fi
-              ls -l pi_natives.win32-x64-*.node
-
-         # Main-scoped caches are readable by every ref (tag runs included);
-         # a cache saved by a tag run is readable only by that tag. Dispatch
-         # from main to refresh the shared cache after a Rust change.
-         - name: Save Cargo cache
-           if: steps.natives.outputs.source == 'cargo' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
-           continue-on-error: true
-           uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-           with:
-              path: |
-                 ~/.cargo/registry
-                 ~/.cargo/git
-                 target
-              key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
-
-         - name: Set fork version
-           env:
-              FORK_VERSION: ${{ steps.tag.outputs.version }}
-           run: |
-              set -euo pipefail
-              # SemVer build metadata (`+dz.<n>`) sorts equal to the upstream
-              # version, so omp's version comparisons behave as upstream's.
-              jq --arg v "$FORK_VERSION" '.version = $v' packages/utils/package.json > packages/utils/package.json.tmp
-              mv packages/utils/package.json.tmp packages/utils/package.json
-
-         - name: Build release binary
-           env:
-              RELEASE_TARGETS: win32-x64
-           run: bun run ci:release:build-binaries
-
-         - name: Smoke release binary
-           shell: pwsh
-           env:
-              BINARY: packages/coding-agent/binaries/omp-windows-x64.exe
-              FORK_VERSION: ${{ steps.tag.outputs.version }}
-           run: |
-              $runtimeDir = Join-Path $env:RUNNER_TEMP "omp-smoke"
-              $env:HOME = Join-Path $runtimeDir "home"
-              $env:USERPROFILE = $env:HOME
-              $env:LOCALAPPDATA = Join-Path $runtimeDir "local"
-              $env:XDG_DATA_HOME = Join-Path $runtimeDir "xdg"
-              New-Item -ItemType Directory -Force -Path $env:HOME, $env:LOCALAPPDATA, $env:XDG_DATA_HOME | Out-Null
-              $reported = (& $env:BINARY --version | Out-String).Trim()
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-              Write-Output "omp --version: $reported"
-              if (-not $reported.Contains($env:FORK_VERSION)) {
-                Write-Output "::error::--version printed '$reported', expected it to contain $env:FORK_VERSION"
-                exit 1
-              }
-              & $env:BINARY --smoke-test
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-         - name: Publish GitHub release
+         - name: Publish
            env:
               GH_TOKEN: ${{ github.token }}
-              FORK_VERSION: ${{ steps.tag.outputs.version }}
+              FORK_VERSION: ${{ needs.check_tag.outputs.version }}
            run: |
               set -euo pipefail
-              mkdir -p dist
-              cp packages/coding-agent/binaries/omp-windows-x64.exe dist/
               cd dist
-              sha256sum omp-windows-x64.exe > omp-windows-x64.exe.sha256
-              cat omp-windows-x64.exe.sha256
-              notes="omp $FORK_VERSION for Windows x64, built from $(git rev-parse HEAD) by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. See docs/fork/README.md."
+              sha256sum -c omp-windows-x64.exe.sha256
+              commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
+              notes="omp $FORK_VERSION for Windows x64, built from $commit by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. See docs/fork/README.md."
               if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
                 gh release upload "$RELEASE_TAG" omp-windows-x64.exe omp-windows-x64.exe.sha256 --clobber -R "$GITHUB_REPOSITORY"
               else
