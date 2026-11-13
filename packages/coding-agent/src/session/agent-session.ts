@@ -1545,6 +1545,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#releasePowerAssertion();
 		this.#endComputerTurn();
 		this.#flushPendingAgentEnd();
+		this.#advisors.flushPendingMarks();
 		// The in-flight bracket drained: wake steers parked on a dispatch that
 		// settled without ever going live (setup failure, abort, disposal) —
 		// they re-check liveness and keep their content.
@@ -2053,6 +2054,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#releasePowerAssertion();
 		this.#endComputerTurn();
 		this.#flushPendingAgentEnd();
+		this.#advisors.flushPendingMarks();
 		// The abort/disposal cleared every in-flight bracket: wake steers
 		// parked on a dispatch that will never go live — they re-check
 		// `#abortInProgress` and keep their content.

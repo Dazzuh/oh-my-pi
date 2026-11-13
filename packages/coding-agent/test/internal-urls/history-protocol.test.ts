@@ -253,6 +253,24 @@ describe("history:// protocol", () => {
 		expect(content).toContain("Output:");
 	});
 
+	it("withholds advisor mark text from current-branch full history but keeps the entry id", () => {
+		const content = formatCurrentBranchFullHistory([
+			{
+				type: "custom_message",
+				id: "mark-entry",
+				parentId: null,
+				timestamp: new Date().toISOString(),
+				customType: "advisor-mark",
+				content: '<advisory advisor="claims">"All tests pass." No test run appears.</advisory>',
+				display: true,
+				details: { notes: [{ note: '"All tests pass." No test run appears.', advisor: "claims" }] },
+			},
+		] as unknown as SessionEntry[]);
+
+		expect(content).toContain("mark-entry");
+		expect(content).not.toContain("No test run appears");
+	});
+
 	it("retains every assistant block variant in current-branch full history", () => {
 		const longPayload = `research finding ${"x".repeat(5200)}`;
 		const content = formatCurrentBranchFullHistory([

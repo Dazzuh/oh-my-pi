@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type } from "@oh-my-pi/omptype";
-import { isEnoent, logger, slugify } from "@oh-my-pi/pi-utils";
+import { isEnoent, logger, prompt, slugify } from "@oh-my-pi/pi-utils";
 import { YAML } from "bun";
 import { expandAtImports } from "../discovery/at-imports";
 import { BUILTIN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
@@ -247,6 +247,21 @@ export async function discoverAdvisorConfigs(cwd: string, agentDir?: string): Pr
 			const expand = async (text: string | undefined): Promise<string | undefined> =>
 				text?.trim() ? (await expandAtImports(text, item.path)).trim() || undefined : undefined;
 			const entryInstructions = await expand(entry.instructions);
+			const systemPrompt = await expand(entry.systemPrompt);
+			if (systemPrompt) {
+				// Rendered when the advisor is built; a template that cannot render would fail the session.
+				try {
+					prompt.render(systemPrompt, { max_notes_per_update: 1 });
+				} catch (err) {
+					warn(
+						`${item.path}: advisor "${entry.name}" dropped — systemPrompt is not a valid template (${String(err)})`,
+						{
+							path: item.path,
+						},
+					);
+					continue;
+				}
+			}
 			advisors.set(slug, {
 				name: entry.name,
 				model: entry.model?.trim() || undefined,
@@ -265,7 +280,7 @@ export async function discoverAdvisorConfigs(cwd: string, agentDir?: string): Pr
 				includeReasoning: entry.includeReasoning,
 				instructions: entryInstructions,
 				mode: entry.mode,
-				systemPrompt: await expand(entry.systemPrompt),
+				systemPrompt,
 				toolDescription: await expand(entry.toolDescription),
 			});
 		}

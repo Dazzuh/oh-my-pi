@@ -670,7 +670,7 @@ describe("advisor mode and per-entry prompts", () => {
 		expect(await loadWatchdogConfigFile(file)).toEqual(doc);
 	});
 
-	it("expands @imports in systemPrompt and drops an entry with an unknown mode", async () => {
+	it("expands @imports in systemPrompt and drops entries with an unknown mode or a broken template", async () => {
 		await Bun.write(path.join(tmp, "claims", "system.md"), "Imported base prompt.");
 		const yaml = [
 			"advisors:",
@@ -679,6 +679,8 @@ describe("advisor mode and per-entry prompts", () => {
 			"    systemPrompt: '@claims/system.md'",
 			"  - name: typo",
 			"    mode: marker",
+			"  - name: broken",
+			"    systemPrompt: 'Mark at most {{#if max_notes_per_update}} notes.'",
 		].join("\n");
 		await Bun.write(path.join(tmp, "WATCHDOG.yml"), yaml);
 
@@ -686,7 +688,8 @@ describe("advisor mode and per-entry prompts", () => {
 		expect(advisors.map(a => [a.name, a.mode, a.systemPrompt])).toEqual([
 			["claims", "mark", "Imported base prompt."],
 		]);
-		expect(warnings).toHaveLength(1);
+		expect(warnings).toHaveLength(2);
 		expect(warnings[0]).toContain('"typo"');
+		expect(warnings[1]).toContain('"broken"');
 	});
 });

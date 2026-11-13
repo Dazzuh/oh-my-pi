@@ -2807,6 +2807,18 @@ export class SessionAdvisors {
 		this.#terminalUnwindActive = false;
 	}
 
+	/**
+	 * Record marks still held when the session settles. A run that ends by
+	 * abort or error never reaches the terminal boundary that normally flushes
+	 * them (both the advise tool's in-progress deferrals and the mark buffer),
+	 * and they must not wait for the next run's boundary.
+	 */
+	flushPendingMarks(): void {
+		if (this.#host.isDisposed() || this.#host.agent.state.isStreaming) return;
+		for (const advisor of this.#advisors) if (advisor.marks) advisor.adviseTool.flushDeferredNotes();
+		this.#flushMarks();
+	}
+
 	/** Restore normal advisor routing when the primary starts or continues work. */
 	onPrimaryTurnStart(): void {
 		this.#terminalUnwindActive = false;

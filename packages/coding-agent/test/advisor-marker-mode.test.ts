@@ -8,7 +8,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { Agent } from "@oh-my-pi/pi-agent-core";
 import type { Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
 import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
 import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
@@ -47,11 +47,11 @@ describe("advisor marker mode", () => {
 		await tempDir.remove();
 	});
 
-	function createSession(advisor: AdvisorConfig) {
-		const primaryMock = createMockModel({
-			provider: "anthropic",
-			responses: [{ content: ["All tests pass."] }, { content: ["Next step done."] }],
-		});
+	function createSession(
+		advisor: AdvisorConfig,
+		primaryResponses: MockResponse[] = [{ content: ["All tests pass."] }, { content: ["Next step done."] }],
+	) {
+		const primaryMock = createMockModel({ provider: "anthropic", responses: primaryResponses });
 		const advisorMock = createMockModel({
 			provider: "anthropic",
 			responses: [{ content: [{ type: "toolCall", name: "advise", arguments: { note: NOTE, severity: "nit" } }] }],
@@ -127,6 +127,17 @@ describe("advisor marker mode", () => {
 		const nextRequest = requestText(primaryMock.calls[1].context.messages);
 		expect(nextRequest).toContain("<advisory");
 		expect(nextRequest).toContain("No test run appears");
+	});
+
+	it("records a mark buffered mid-run when the run ends in an error instead of a final boundary", async () => {
+		const { session: live, events } = createSession({ name: "claims", mode: "mark", reviewMode: "turn" }, [
+			{ content: [{ type: "toolCall", name: "noop", arguments: {} }] },
+			{ stopReason: "error", errorMessage: "provider exploded" },
+		]);
+
+		await live.prompt("run the tests").catch(() => undefined);
+		expect(await live.waitForAdvisorCatchup(2_000)).toBe(true);
+		expect(customTypesEnded(events)).toEqual(["advisor-mark"]);
 	});
 
 	it("uses the roster entry's own base prompt and advise description", async () => {

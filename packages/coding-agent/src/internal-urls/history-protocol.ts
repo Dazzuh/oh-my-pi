@@ -25,6 +25,7 @@ import { AgentRegistry } from "../registry/agent-registry";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
 import { formatSessionHistoryMarkdown } from "../session/session-history-format";
 import {
+	ADVISOR_MARK_MESSAGE_TYPE,
 	bashExecutionToText,
 	pythonExecutionToText,
 	type BashExecutionMessage,
@@ -130,6 +131,9 @@ function appendTextContent(lines: string[], content: string | readonly { type: s
 	}
 }
 
+/** Stands in for an advisor mark's text, which only the user sees. */
+const ADVISOR_MARK_WITHHELD = "> Advisor mark: shown to the user only.";
+
 function appendRawMessage(lines: string[], message: AgentMessage): void {
 	switch (message.role) {
 		case "user":
@@ -216,6 +220,11 @@ function appendRawMessage(lines: string[], message: AgentMessage): void {
 		case "hookMessage": {
 			const customMessage = message as CustomMessage | HookMessage;
 			lines.push(`### ${customMessage.role} (${customMessage.customType})`);
+			// Marks are for the user only; agents reading history never get their text.
+			if (customMessage.customType === ADVISOR_MARK_MESSAGE_TYPE) {
+				lines.push(ADVISOR_MARK_WITHHELD);
+				return;
+			}
 			appendTextContent(lines, customMessage.content);
 			return;
 		}
@@ -278,6 +287,10 @@ function renderRawEntry(lines: string[], entry: SessionEntry): void {
 	}
 	if (entry.type === "branch_summary") {
 		lines.push(`From entry: ${entry.fromId}`, "", entry.summary);
+		return;
+	}
+	if (entry.type === "custom_message" && entry.customType === ADVISOR_MARK_MESSAGE_TYPE) {
+		lines.push(ADVISOR_MARK_WITHHELD);
 		return;
 	}
 	lines.push(jsonFence(JSON.stringify(entry, null, 2) ?? "null"));
