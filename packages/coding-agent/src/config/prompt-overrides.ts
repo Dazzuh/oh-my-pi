@@ -11,8 +11,9 @@
  * layer. Per file, project beats user beats bundled. Overrides are Handlebars source rendered
  * with the same data as the file they replace, and are read once per top-level
  * session, so every request for a model carries the same bytes and the
- * provider prompt cache keeps hitting. Without either directory nothing
- * changes.
+ * provider prompt cache keeps hitting. `tool-summaries/<tool>.md` (plain text,
+ * first non-empty line) replaces a tool's one-line `xd://` catalog summary the
+ * same way. Without either directory nothing changes.
  */
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -28,6 +29,14 @@ import { BUNDLED_PROMPTS } from "./bundled-prompts.generated";
 export const PROMPT_OVERRIDES_DIR = "prompt-overrides";
 /** Directory under {@link PROMPT_OVERRIDES_DIR} whose subdirectories hold model-scoped overrides. */
 export const MODEL_OVERRIDES_DIR = "models";
+/**
+ * Directory under {@link PROMPT_OVERRIDES_DIR} (or a model key's directory) whose `<tool>.md` files replace the
+ * one-line `xd://` catalog summary of the tool with that name.
+ */
+export const TOOL_SUMMARIES_DIR = "tool-summaries";
+const TOOL_NAME = /^[\w.-]+$/;
+// Each resolved template set → its tool summary overrides, so a summary follows the set a render uses.
+const toolSummariesBySet = new WeakMap<ReadonlyMap<string, string>, ReadonlyMap<string, string>>();
 
 export type PromptOverrideLevel = "user" | "project";
 
@@ -153,11 +162,15 @@ function installSet(set: PromptOverrideSet) {
 					for (const [file, content] of layer.models.get(key) ?? []) files.set(file, content);
 				}
 			});
-			overrides = new Map(
-				[...files]
-					.sort(([a], [b]) => a.localeCompare(b))
-					.map(([file, content]) => [BUNDLED_PROMPTS.get(file)!, content]),
-			);
+			const templates = new Map<string, string>();
+			const summaries = new Map<string, string>();
+			for (const [file, content] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
+				const tool = toolSummaryName(file);
+				if (tool !== undefined) summaries.set(tool, content);
+				else templates.set(BUNDLED_PROMPTS.get(file)!, content);
+			}
+			overrides = templates;
+			if (summaries.size > 0) toolSummariesBySet.set(overrides, summaries);
 			byKeys.set(cacheKey, overrides);
 		}
 		return overrides;
@@ -239,8 +252,28 @@ function splitModelPath(relative: string): [string | undefined, string] {
 	return slash < 0 ? ["", rest] : [rest.slice(0, slash), rest.slice(slash + 1)];
 }
 
-/** The file's content when it can replace a bundled prompt, else why not. */
+/** The tool a `tool-summaries/<tool>.md` path names, else `undefined`. */
+function toolSummaryName(file: string): string | undefined {
+	const prefix = `${TOOL_SUMMARIES_DIR}/`;
+	return file.startsWith(prefix) && file.endsWith(".md") ? file.slice(prefix.length, -".md".length) : undefined;
+}
+
+/**
+ * The `xd://` catalog line for `tool` in the set the caller renders with (the session's model's set inside
+ * a session), or `undefined` to keep the tool's own summary.
+ */
+export function toolSummaryOverride(tool: string): string | undefined {
+	return toolSummariesBySet.get(prompt.currentTemplateOverrides())?.get(tool);
+}
+
+/** The file's content when it can replace a bundled prompt or a tool summary, else why not. */
 async function validate(file: string, filePath: string): Promise<{ content: string } | string> {
+	const tool = toolSummaryName(file);
+	if (tool !== undefined) {
+		if (!TOOL_NAME.test(tool)) return "not a tool name";
+		const line = (await fs.readFile(filePath, "utf8")).split("\n").find(text => text.trim().length > 0);
+		return line ? { content: line.trim() } : "file is empty";
+	}
 	if (!BUNDLED_PROMPTS.has(file)) return "no bundled prompt has this path";
 	const content = await fs.readFile(filePath, "utf8");
 	if (!content.trim()) return "file is empty";

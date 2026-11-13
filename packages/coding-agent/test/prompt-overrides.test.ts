@@ -16,7 +16,8 @@ import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import { type CreateAgentSessionOptions, createAgentSession, discoverAuthStorage } from "@oh-my-pi/pi-coding-agent/sdk";
 import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
 import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { planXdevPromptDocs, type XdevState } from "@oh-my-pi/pi-coding-agent/tools/xdev";
 import { FindTool } from "@oh-my-pi/pi-coding-agent/tools/jfind";
 import { Glob } from "bun";
 import { prompt, removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
@@ -229,6 +230,40 @@ describe("prompt overrides", () => {
 			await opusSession.dispose();
 			await haikuSession.dispose();
 		}
+	});
+
+	it("replaces a device's xd:// catalog line, per model, and keeps the tool's own summary without a file", async () => {
+		const tool = (name: string, summary: string) =>
+			({ name, label: name, summary, description: `${name} docs`, parameters: {} }) as unknown as Tool;
+		const tools = [tool("lsp", "Query LSP"), tool("ast_grep", "Search code with AST patterns")];
+		const state: XdevState = {
+			tools: new Map(tools.map(entry => [entry.name, entry])),
+			mountedNames: new Set(["lsp", "ast_grep"]),
+			builtInNames: new Set(["lsp", "ast_grep"]),
+			isActive: () => false,
+		};
+		const catalog = () => planXdevPromptDocs(state, "catalog").catalog;
+		expect([...catalog()]).toEqual([
+			["lsp", "Query LSP"],
+			["ast_grep", "Search code with AST patterns"],
+		]);
+
+		const dir = makeAgentDir({
+			"tool-summaries/lsp.md":
+				"\nWhen you need a definition or every caller, lsp answers exactly where grep guesses.\nignored",
+			"models/claude-opus/tool-summaries/ast_grep.md": "Opus ast_grep line.",
+			"tool-summaries/bad name.md": "skipped",
+		});
+		const result = await loadPromptOverrides({ agentDir: dir, cwd: dir });
+		expect(result.skipped.map(entry => entry.path)).toEqual(["tool-summaries/bad name.md"]);
+		const lspLine = "When you need a definition or every caller, lsp answers exactly where grep guesses.";
+		expect(catalog().get("lsp")).toBe(lspLine);
+		expect(catalog().get("ast_grep")).toBe("Search code with AST patterns");
+		const opus = resolvePromptOverrides("anthropic/claude-opus-4-5");
+		expect([...prompt.withTemplateOverrides(() => opus, catalog)]).toEqual([
+			["lsp", lspLine],
+			["ast_grep", "Opus ast_grep line."],
+		]);
 	});
 
 	it("can override every bundled prompt file", () => {

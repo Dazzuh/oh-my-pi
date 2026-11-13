@@ -41,6 +41,7 @@ import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { resolveToolWireName } from "../utils/tool-wire-name";
 import { stripXdUrlPrefix, XD_URL_PREFIX } from "@oh-my-pi/pi-tui/tools/xd-url";
 import { truncateHeadBytes } from "@oh-my-pi/pi-tui/tools/streaming-output";
+import { toolSummaryOverride } from "../config/prompt-overrides";
 import { resolveToolTier, type ToolTier } from "./approval";
 import type { Tool, ToolSession } from "./index";
 import { renderError, ToolAbortError } from "./tool-errors";
@@ -186,8 +187,13 @@ function parseDeviceArgs(
 	}
 }
 
-/** One-line catalog summary for a mounted tool: `summary`, else first description line. */
+/**
+ * One-line catalog summary for a mounted tool: a `tool-summaries/<name>.md` prompt override, else `summary`,
+ * else first description line.
+ */
 function toolSummary(inst: Tool): string {
+	const override = toolSummaryOverride(inst.name);
+	if (override) return override;
 	if (inst.summary) return inst.summary;
 	const firstLine = (inst.description ?? "").split("\n").find(line => line.trim().length > 0);
 	return firstLine?.trim() ?? inst.label ?? inst.name;
