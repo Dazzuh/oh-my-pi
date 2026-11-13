@@ -661,7 +661,9 @@ export class TodoTool implements AgentTool<typeof todoSchema, TodoToolDetails> {
 	readonly approval = "read" as const;
 	readonly label = "Todo";
 	readonly summary = "Write a structured todo list to track progress within a session";
-	readonly description: string;
+	get description(): string {
+		return prompt.render(todoDescription);
+	}
 	readonly parameters = todoSchema;
 	readonly concurrency = "exclusive";
 	readonly strict = true;
@@ -670,9 +672,7 @@ export class TodoTool implements AgentTool<typeof todoSchema, TodoToolDetails> {
 	readonly lenientArgValidation = true;
 
 	readonly loadMode = "discoverable";
-	constructor(private readonly session: ToolSession) {
-		this.description = prompt.render(todoDescription);
-	}
+	constructor(private readonly session: ToolSession) {}
 
 	async execute(
 		_toolCallId: string,

@@ -187,7 +187,9 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 	};
 	readonly label = "AST Edit";
 	readonly summary = "Perform AST-aware code edits (SHOULD be preferred for codemods)";
-	readonly description: string;
+	get description(): string {
+		return prompt.render(astEditDescription);
+	}
 	readonly parameters = astEditSchema;
 	readonly strict = true;
 
@@ -237,9 +239,7 @@ export class AstEditTool implements AgentTool<typeof astEditSchema, AstEditToolD
 	];
 	readonly deferrable = true;
 	readonly loadMode = "discoverable";
-	constructor(private readonly session: ToolSession) {
-		this.description = prompt.render(astEditDescription);
-	}
+	constructor(private readonly session: ToolSession) {}
 
 	async execute(
 		_toolCallId: string,

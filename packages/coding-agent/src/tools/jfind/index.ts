@@ -76,7 +76,9 @@ export class FindTool implements AgentTool<typeof findSchema, FindToolDetails> {
 	readonly loadMode = "essential";
 	readonly label = "Find";
 	readonly summary = "Semantic grep: find files and line ranges by describing what they do";
-	readonly description = prompt.overridden(findDescription);
+	get description(): string {
+		return prompt.overridden(findDescription);
+	}
 	readonly parameters = findSchema;
 	readonly strict = true;
 

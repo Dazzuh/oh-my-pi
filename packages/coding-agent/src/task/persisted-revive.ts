@@ -6,6 +6,7 @@ import { validateAgentAccountPools } from "../config/account-pools";
 import type { Model } from "@oh-my-pi/pi-ai";
 import { assertModelSupportsEffortCeiling } from "@oh-my-pi/pi-tui/thinking";
 import type { ModelRegistry } from "../config/model-registry";
+import { getPromptOverrideSet, installPromptOverrideSet, type PromptOverrideSet } from "../config/prompt-overrides";
 import {
 	formatModelStringWithRouting,
 	getModelMatchPreferences,
@@ -111,6 +112,8 @@ export interface PersistedReviveSpec {
 	readonly enableLsp: boolean;
 	readonly eventBus: EventBus | undefined;
 	readonly subagentEventBus: EventBus | undefined;
+	/** The root's prompt overrides, every model's (module state, which a worker does not share). */
+	readonly promptOverrides: PromptOverrideSet;
 }
 
 /**
@@ -234,6 +237,7 @@ export function createPersistedSubagentReviverFactory(
 				enableLsp: ctx.enableLsp,
 				eventBus: ctx.eventBus,
 				subagentEventBus: ctx.subagentEventBus,
+				promptOverrides: getPromptOverrideSet(),
 			};
 			// Worker mode: a revival is placed like a fresh spawn (main thread or a worker).
 			const pool = subagentWorkerPool(ctx.settings);
@@ -249,6 +253,8 @@ export function createPersistedSubagentReviverFactory(
  * worker that will home it) and claim `expectedRef` for it.
  */
 export async function revivePersistedSubagent(spec: PersistedReviveSpec, expectedRef: AgentRef): Promise<AgentSession> {
+	// A worker revives with the root's set, as a fresh spawn does; the child picks its model's files.
+	installPromptOverrideSet(spec.promptOverrides);
 	const ref = { id: spec.id, displayName: spec.displayName, parentId: spec.parentId };
 	const { sessionFile, taskDepth, restoredSeance } = spec;
 	const seanceOptions = restoredSeance ? seanceIsolationOptions(restoredSeance.cwd) : {};

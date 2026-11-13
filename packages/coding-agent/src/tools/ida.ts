@@ -96,14 +96,14 @@ export class IdaTool implements AgentTool<typeof idaSchema, IdaToolDetails> {
 	};
 	readonly label = "IDA";
 	readonly summary = "Open, edit, and script IDA Pro databases shared across agents";
-	readonly description: string;
+	get description(): string {
+		return prompt.render(idaDescription);
+	}
 	readonly parameters = idaSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";
 
-	constructor(private readonly session: ToolSession) {
-		this.description = prompt.render(idaDescription);
-	}
+	constructor(private readonly session: ToolSession) {}
 
 	/** Create the tool when `ida.enabled` is on. */
 	static createIf(session: ToolSession): IdaTool | null {
