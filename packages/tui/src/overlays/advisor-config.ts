@@ -64,10 +64,13 @@ import { getThinkingLevelMetadata, parseThinkingLevel } from "../thinking";
 export const ADVISOR_REVIEW_MODES = ["turn", "agent-end"] as const;
 export const ADVISOR_SYNC_BACKLOG_MODES = ["off", "1", "3", "5", "strict"] as const;
 export const ADVISOR_SESSION_SCOPES = ["main", "subagent", "all"] as const;
+export const ADVISOR_MODES = ["advise", "mark"] as const;
 
 export type AdvisorReviewMode = (typeof ADVISOR_REVIEW_MODES)[number];
 export type AdvisorSyncBacklog = (typeof ADVISOR_SYNC_BACKLOG_MODES)[number];
 export type AdvisorSessionScope = (typeof ADVISOR_SESSION_SCOPES)[number];
+/** `advise` notes reach the watched agent; `mark` notes are shown to the user only and never enter its context. */
+export type AdvisorMode = (typeof ADVISOR_MODES)[number];
 /** One advisor declared in `WATCHDOG.yml`; its instructions specialize the shared baseline. */
 export interface AdvisorConfig {
 	name: string;
@@ -87,6 +90,12 @@ export interface AdvisorConfig {
 	scope?: AdvisorSessionScope;
 	/** Whether primary assistant thinking blocks are included in updates sent to this advisor (defaults to `true`). */
 	includeReasoning?: boolean;
+	/** Defaults to `advise`. */
+	mode?: AdvisorMode;
+	/** Replaces the bundled base prompt for this advisor (the mode's default otherwise). */
+	systemPrompt?: string;
+	/** Replaces the bundled `advise` tool description for this advisor (the mode's default otherwise). */
+	toolDescription?: string;
 }
 
 /** Which level a `WATCHDOG.yml` lives at: the project root or the user agent dir. */
@@ -1200,14 +1209,18 @@ export class AdvisorConfigOverlayComponent implements Component {
 			advisor.enabled !== false &&
 			advisor.maxNotesPerUpdate === undefined &&
 			advisor.scope === undefined &&
-			advisor.includeReasoning === undefined
+			advisor.includeReasoning === undefined &&
+			advisor.mode === undefined &&
+			!advisor.systemPrompt?.trim() &&
+			!advisor.toolDescription?.trim()
 		);
 	}
 
 	#advisorSummary(advisor: AdvisorConfig): string {
 		const model = advisor.model?.trim() || this.#defaultModelLabel || "advisor role default";
 		const tools = formatAdvisorTools(advisor.tools, "no tools");
-		return `${model} · ${tools} · review ${advisor.reviewMode ?? "turn"}/${advisor.reviewInterval ?? 1}`;
+		const mode = advisor.mode === "mark" ? " · marks only" : "";
+		return `${model} · ${tools} · review ${advisor.reviewMode ?? "turn"}/${advisor.reviewInterval ?? 1}${mode}`;
 	}
 
 	/** The advisor's explicit catch-up override, else the inherited global policy. */

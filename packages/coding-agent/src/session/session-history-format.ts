@@ -10,14 +10,15 @@ import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
 import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@oh-my-pi/pi-ai";
 import { countNewlines, escapeXmlText, isRecord } from "@oh-my-pi/pi-utils";
 import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
-import type {
-	BashExecutionMessage,
-	BranchSummaryMessage,
-	CompactionSummaryMessage,
-	CustomMessage,
-	FileMentionMessage,
-	HookMessage,
-	PythonExecutionMessage,
+import {
+	ADVISOR_MARK_MESSAGE_TYPE,
+	type BashExecutionMessage,
+	type BranchSummaryMessage,
+	type CompactionSummaryMessage,
+	type CustomMessage,
+	type FileMentionMessage,
+	type HookMessage,
+	type PythonExecutionMessage,
 } from "./messages";
 import { truncateMiddle } from "@oh-my-pi/pi-tui/tools/streaming-output";
 
@@ -613,6 +614,8 @@ export function formatSessionHistoryMarkdown(messages: unknown[], opts?: History
 			case "custom":
 			case "hookMessage": {
 				const custom = msg as CustomMessage | HookMessage;
+				// Marks are for the user only, like `!!` bash output: agents reading this history never see them.
+				if (custom.customType === ADVISOR_MARK_MESSAGE_TYPE) break;
 				if (
 					custom.display === false &&
 					!PRIMARY_CONTEXT_CUSTOM_TYPES.has(custom.customType) &&

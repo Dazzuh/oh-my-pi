@@ -52,6 +52,7 @@ export interface TreeSelectorNode {
 import { toPathList } from "../render/render-utils";
 import { shortenPath } from "../render/render-utils";
 import { canonicalizeMessage } from "../chat/thinking-display";
+import { ADVISOR_MARK_MESSAGE_TYPE } from "../chat/messages";
 import { resolveAssistantErrorPresentation } from "../chat/transcript-render-helpers";
 import { OverlayPanel, PanelDivider } from "../chrome/overlay-box";
 import { TreeView, type TreeAncestor, type TreeRow } from "../components/tree-view";
@@ -624,7 +625,7 @@ class TreeList implements Component {
 			}
 			case "custom_message": {
 				parts.push(entry.customType);
-				if (entry.customType === "advisor") {
+				if (entry.customType === "advisor" || entry.customType === ADVISOR_MARK_MESSAGE_TYPE) {
 					const { qualifier, text } = advisorTreeDisplay(entry.details);
 					if (qualifier) parts.push(qualifier);
 					if (text) parts.push(text);
@@ -1155,9 +1156,10 @@ class TreeList implements Component {
 				return [{ t: `[${role}]`, s: "dim" }];
 			}
 			case "custom_message": {
-				if (entry.customType === "advisor") {
+				if (entry.customType === "advisor" || entry.customType === ADVISOR_MARK_MESSAGE_TYPE) {
 					const { qualifier, text } = advisorTreeDisplay(entry.details);
-					const label = qualifier ? `advisor (${qualifier}): ` : "advisor: ";
+					const kind = entry.customType === "advisor" ? "advisor" : "marks";
+					const label = qualifier ? `${kind} (${qualifier}): ` : `${kind}: `;
 					return [
 						{ t: label, s: "customMessageLabel" },
 						{ t: normalize(text), s: "muted" },

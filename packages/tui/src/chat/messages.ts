@@ -303,10 +303,16 @@ export interface AdvisorNote {
 	turnsAgo?: number;
 }
 
-/** Details payload on the batched `advisor` custom message rendered in the transcript. */
+/** Details payload on the batched `advisor` and `advisor-mark` custom messages rendered in the transcript. */
 export interface AdvisorMessageDetails {
 	notes: AdvisorNote[];
 }
+
+/**
+ * Custom message type for notes from a `mode: mark` advisor: shown to the user
+ * and kept in the session, never converted into the agent's model context.
+ */
+export const ADVISOR_MARK_MESSAGE_TYPE = "advisor-mark";
 
 /** Custom message type for supervised process completions. */
 export const LAUNCH_COMPLETION_MESSAGE_TYPE = "launch-completion";

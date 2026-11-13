@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `WATCHDOG.yml` advisors can set `mode: mark`: their notes are shown to you as marks on the transcript and never reach the agent's context; any advisor can also set its own `systemPrompt` and `toolDescription`
+
 ## [18.20.0] - 2026-11-12
 
 ### Breaking Changes

@@ -2,7 +2,7 @@ import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
 import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
 import { MAGIC_KEYWORDS } from "../modes/magic-keywords";
 import type { RestoredQueuedMessage } from "./agent-session-types";
-import { type CustomMessage, readQueueChipText } from "./messages";
+import { ADVISOR_MARK_MESSAGE_TYPE, type CustomMessage, readQueueChipText } from "./messages";
 
 function queuedTextContent(message: AgentMessage): string | undefined {
 	if (!("content" in message)) return undefined;
@@ -33,6 +33,14 @@ export function isDisplayableQueuedMessage(message: AgentMessage): boolean {
 /** Whether a queued message is an advisor card. */
 export function isAdvisorCard(message: AgentMessage): message is CustomMessage {
 	return message.role === "custom" && message.customType === "advisor";
+}
+
+/** Whether a message is advisor output: a card the agent reads or a mark only the user sees. */
+export function isAdvisorOutput(message: AgentMessage | undefined): message is CustomMessage {
+	return (
+		message?.role === "custom" &&
+		(message.customType === "advisor" || message.customType === ADVISOR_MARK_MESSAGE_TYPE)
+	);
 }
 
 /** Whether a message is a terminal assistant answer containing text and no tools. */

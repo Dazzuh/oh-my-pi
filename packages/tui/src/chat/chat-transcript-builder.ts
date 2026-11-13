@@ -18,7 +18,7 @@ import type { AdvisorMessageDetails } from "./messages";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "./messages";
 import { chatTranscriptDisplayPreferences as displayPreferences } from "./display-preferences";
 import type { AssistantTextRenderer, MessageRenderer } from "./extension-types";
-import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "./messages";
+import { ADVISOR_MARK_MESSAGE_TYPE, LAUNCH_COMPLETION_MESSAGE_TYPE } from "./messages";
 import {
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
 	type CustomMessage,
@@ -662,9 +662,11 @@ export class ChatTranscriptBuilder {
 			this.container.addChild(buildIrcMessageCard(message, () => this.#expanded));
 			return;
 		}
-		if (message.customType === "advisor") {
+		if (message.customType === "advisor" || message.customType === ADVISOR_MARK_MESSAGE_TYPE) {
 			const details = (message as CustomMessage<AdvisorMessageDetails>).details;
-			const card = createAdvisorMessageCard(details, () => this.#expanded, theme);
+			const card = createAdvisorMessageCard(details, () => this.#expanded, theme, {
+				marks: message.customType === ADVISOR_MARK_MESSAGE_TYPE,
+			});
 			// Tracked so a transcript-wide toggle also clears a per-card native toggle.
 			this.#trackExpandable(card);
 			this.container.addChild(card);

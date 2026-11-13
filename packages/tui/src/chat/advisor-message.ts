@@ -13,6 +13,8 @@ import { plainText } from "../native/spans";
 import { Memo } from "../native/memo";
 
 const COLLAPSED_NOTES = 3;
+/** Card note for `mode: mark` advisors: the user sees these notes, the agent does not. */
+const MARKS_HIDDEN_LABEL = "not sent to agent";
 const NOTE_LINE_WIDTH = 110;
 
 function wrapVarying(text: string, w1: number, w2: number): string[] {
@@ -48,9 +50,12 @@ class AdvisorHeader implements Component {
 	readonly #uiTheme: Theme;
 	#cache: { width: number; lines: readonly string[] } | undefined;
 
-	constructor(meta: readonly string[], uiTheme: Theme) {
+	readonly #title: string;
+
+	constructor(meta: readonly string[], uiTheme: Theme, title: string) {
 		this.#meta = meta;
 		this.#uiTheme = uiTheme;
+		this.#title = title;
 	}
 
 	releaseRenderCaches(): void {
@@ -65,7 +70,7 @@ class AdvisorHeader implements Component {
 		width = Math.max(1, width);
 		if (this.#cache?.width === width) return this.#cache.lines;
 		const uiTheme = this.#uiTheme;
-		const tag = uiTheme.fg("customMessageLabel", uiTheme.bold(`${uiTheme.status.info} Advisor`));
+		const tag = uiTheme.fg("customMessageLabel", uiTheme.bold(`${uiTheme.status.info} ${this.#title}`));
 		const lines = [
 			truncateToWidth(`${tag} ${uiTheme.fg("dim", this.#meta.join(uiTheme.sep.dot))}`, width, Ellipsis.Unicode),
 		];
@@ -208,17 +213,21 @@ export interface AdvisorMessageCard extends Component {
  * each leads with its own severity icon.
  *
  * `getExpanded` owns expansion; a native toggle overrides it for this card
- * until the next transcript-wide change.
+ * until the next transcript-wide change. `marks` styles notes from a
+ * `mode: mark` advisor, which the user sees and the agent never does.
  */
 export function createAdvisorMessageCard(
 	details: AdvisorMessageDetails | undefined,
 	getExpanded: () => boolean,
 	uiTheme: Theme,
+	options?: { marks?: boolean },
 ): AdvisorMessageCard {
+	const marks = options?.marks === true;
 	const notes = details?.notes ?? [];
 	const blockers = notes.filter(note => note.severity === "blocker").length;
 	const meta: string[] = [`${notes.length} ${notes.length === 1 ? "note" : "notes"}`];
 	if (blockers > 0) meta.push(uiTheme.fg("error", `${blockers} blocker${blockers === 1 ? "" : "s"}`));
+	if (marks) meta.push(MARKS_HIDDEN_LABEL);
 	let override: boolean | undefined;
 	let lastGlobal = getExpanded();
 	const expanded = (): boolean => {
@@ -240,7 +249,10 @@ export function createAdvisorMessageCard(
 			[
 				node("icon", { name: look.icon, tone: look.tone }),
 				text(tallySpans(notes), { grow: 1 }),
-				text([span(sources.size === 1 && sole ? sole : "Advisor", "dim")], { role: "omp.advisor.source" }),
+				text([span(sources.size === 1 && sole ? sole : marks ? "Marks" : "Advisor", "dim")], {
+					role: "omp.advisor.source",
+				}),
+				...(marks ? [text([span(MARKS_HIDDEN_LABEL, "dim")], { role: "omp.advisor.hidden" })] : []),
 			],
 			"head",
 		);
@@ -270,7 +282,7 @@ export function createAdvisorMessageCard(
 
 	const shown = notes.slice(0, COLLAPSED_NOTES);
 	const disclosure = new Disclosure({
-		summary: new AdvisorHeader(meta, uiTheme),
+		summary: new AdvisorHeader(meta, uiTheme, marks ? "Marks" : "Advisor"),
 		collapsedBody: () => new AdvisorNotes(shown, notes.length - shown.length, uiTheme),
 		body: () => new AdvisorNotes(notes, 0, uiTheme),
 		expanded: getExpanded(),

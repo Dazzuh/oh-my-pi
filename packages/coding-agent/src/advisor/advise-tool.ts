@@ -206,7 +206,7 @@ export class AdviseTool implements AgentTool<typeof adviseSchema, AdviseDetails>
 	readonly name = "advise";
 	readonly label = "Advise";
 	get description(): string {
-		return prompt.overridden(adviseDescription);
+		return prompt.overridden(this.#descriptionTemplate);
 	}
 	readonly parameters = adviseSchema;
 	readonly intent = "omit" as const;
@@ -217,6 +217,8 @@ export class AdviseTool implements AgentTool<typeof adviseSchema, AdviseDetails>
 	 * pending note.
 	 */
 	readonly #guard: AdvisorEmissionGuard;
+	/** Bundled description (resolved through prompt overrides on each read) or an advisor's own text. */
+	readonly #descriptionTemplate: string;
 	#inProgressUpdate = false;
 	/** Primary-turn count the in-flight update reviews (stamped on emitted notes
 	 *  so merged batches can report how stale each review was at delivery). */
@@ -242,12 +244,17 @@ export class AdviseTool implements AgentTool<typeof adviseSchema, AdviseDetails>
 	 *   note is emitted (live or deferred). Defaults to a stock
 	 *   {@link AdvisorEmissionGuard} (default budget
 	 *   {@link ADVISOR_DEFAULT_BUDGET_PER_UPDATE}).
+	 * @param descriptionTemplate Tool description: the bundled `advise` text by
+	 *   default, the marker text for `mode: mark`, or a roster entry's own
+	 *   `toolDescription`.
 	 */
 	constructor(
 		private readonly onAdvice: (note: string, severity: AdviseDetails["severity"] | undefined, turn?: number) => void,
 		guard?: AdvisorEmissionGuard,
+		descriptionTemplate: string = adviseDescription,
 	) {
 		this.#guard = guard ?? new AdvisorEmissionGuard();
+		this.#descriptionTemplate = descriptionTemplate;
 	}
 
 	/**

@@ -90,6 +90,8 @@ import { bridgeToolMap } from "../cursor-bridge-tools";
 import { estimateContextToolSchemaTokens } from "@oh-my-pi/pi-tui/status-line/context-usage";
 import type { PlanModeState } from "../plan-mode/state";
 import advisorBoundaryGuidance from "../prompts/advisor/boundary-guidance.md" with { type: "text" };
+import markToolDescription from "../prompts/advisor/mark-tool.md" with { type: "text" };
+import markSystemPrompt from "../prompts/advisor/mark-system.md" with { type: "text" };
 import advisorSystemPrompt from "../prompts/advisor/system.md" with { type: "text" };
 import type { SecretObfuscator } from "../secrets/obfuscator";
 import {
@@ -103,8 +105,14 @@ import {
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ClientBridge } from "./client-bridge";
 import { resolveCompactionMethodOrder, resolveMethodSettings } from "./compaction-methods";
-import { type CustomMessage, type CustomMessagePayload, isUserAuthoredMessage, isUserTurnInitiator } from "./messages";
-import { isAdvisorCard, isTerminalTextAssistantAnswer } from "./queued-messages";
+import {
+	ADVISOR_MARK_MESSAGE_TYPE,
+	type CustomMessage,
+	type CustomMessagePayload,
+	isUserAuthoredMessage,
+	isUserTurnInitiator,
+} from "./messages";
+import { isAdvisorOutput, isTerminalTextAssistantAnswer } from "./queued-messages";
 import {
 	calculateRetryBackoffDelayMs,
 	formatRetryFallbackSelector,
@@ -323,6 +331,8 @@ interface ActiveAdvisor {
 	agent: Agent;
 	runtime: AdvisorRuntime;
 	adviseTool: AdviseTool;
+	/** `mark`: notes are recorded for the user only and never reach the primary. */
+	marks: boolean;
 	recorder: AdvisorTranscriptRecorder;
 	recorderClosed: Promise<void>;
 	agentUnsubscribe?: () => void;
@@ -624,6 +634,12 @@ export class SessionAdvisors {
 	 * simultaneous notes never force N separate cards or continuation turns.
 	 */
 	#advisorBoundaryNotes: AdvisorNote[] = [];
+	/**
+	 * Notes from `mode: mark` advisors not yet recorded. A mark is never
+	 * appended while the primary loop is mid-run (it would land inside a live
+	 * stream); it waits for the next terminal boundary or an idle primary.
+	 */
+	#pendingMarks: AdvisorNote[] = [];
 	/** Primary-turn count when the staleness header last shipped; `undefined`
 	 *  until the first merged delivery. Gates {@link ADVISOR_BOUNDARY_GUIDANCE}
 	 *  to at most once per {@link ADVISOR_BOUNDARY_GUIDANCE_TURNS} turns. */
@@ -740,6 +756,7 @@ export class SessionAdvisors {
 			// Window closed: deliver everything buffered during flush + catch-up
 			// wait as one merged message (one steer at most, else one card).
 			this.#flushAdvisorBoundaryNotes();
+			if (terminalBoundary) this.#flushMarks();
 			// The merge window covers only this callback. With advisor.syncBacklog
 			// off the review drain can still emit after it returns; those late notes
 			// deliver individually through #routeAdvice, and `#terminalUnwindActive`
@@ -1108,6 +1125,7 @@ export class SessionAdvisors {
 		this.#advisorInterruptImmuneTurnStart = undefined;
 		this.#advisorAutoResumeSuppressed = false;
 		this.#advisorBoundaryNotes = [];
+		this.#pendingMarks = [];
 		this.#advisorBoundaryGuidanceLastTurn = undefined;
 		this.#host.yieldQueue.clear("advisor");
 		this.#host.extractQueuedAdvisorCards();
@@ -1275,6 +1293,9 @@ export class SessionAdvisors {
 			tier,
 			scope,
 			includeReasoning,
+			config.mode ?? "advise",
+			config.systemPrompt?.trim() ?? "",
+			config.toolDescription?.trim() ?? "",
 		].join("\u001f");
 	}
 
@@ -1347,22 +1368,32 @@ export class SessionAdvisors {
 				signature,
 			} = descriptor;
 			const budgetPerUpdate = this.#advisorMaxNotesPerUpdate(config);
+			const marks = config.mode === "mark";
 			// The tool owns admission end-to-end: the guard decides acceptance,
 			// suppression reason, and pending-note displacement; the tool routes
 			// accepted notes and acknowledges truthfully. No separate accept wrapper.
 			const emissionGuard = new AdvisorEmissionGuard({ budgetPerUpdate });
 			const adviseTool = new AdviseTool(
-				(note, severity, turn) => this.#routeAdvice(advisorRef, note, severity, turn),
+				(note, severity, turn) =>
+					marks
+						? this.#routeMark(advisorRef, note, severity, turn)
+						: this.#routeAdvice(advisorRef, note, severity, turn),
 				emissionGuard,
+				config.toolDescription?.trim() || (marks ? markToolDescription : undefined),
 			);
 
 			// `#advisorWatchdogPrompt` already carries WATCHDOG.md + YAML shared
 			// instructions; `config.instructions` adds this advisor's specialization.
-			const systemPrompt = [prompt.render(advisorSystemPrompt, { max_notes_per_update: budgetPerUpdate })];
-			if (this.#advisorContextPrompt) systemPrompt.push(this.#advisorContextPrompt);
-			if (this.#advisorMemoryPrompt) systemPrompt.push(this.#advisorMemoryPrompt);
-			if (this.#advisorWatchdogPrompt) systemPrompt.push(this.#advisorWatchdogPrompt);
-			if (this.#advisorSharedInstructions) systemPrompt.push(this.#advisorSharedInstructions);
+			// A marker gets only its own base prompt and instructions: the shared
+			// advisor texts are written for advice to the agent, which a marker never gives.
+			const basePrompt = config.systemPrompt?.trim() || (marks ? markSystemPrompt : advisorSystemPrompt);
+			const systemPrompt = [prompt.render(basePrompt, { max_notes_per_update: budgetPerUpdate })];
+			if (!marks) {
+				if (this.#advisorContextPrompt) systemPrompt.push(this.#advisorContextPrompt);
+				if (this.#advisorMemoryPrompt) systemPrompt.push(this.#advisorMemoryPrompt);
+				if (this.#advisorWatchdogPrompt) systemPrompt.push(this.#advisorWatchdogPrompt);
+				if (this.#advisorSharedInstructions) systemPrompt.push(this.#advisorSharedInstructions);
+			}
 			if (config.instructions?.trim()) systemPrompt.push(config.instructions.trim());
 
 			// The default roster additionally gets `recall` when the active memory
@@ -1698,6 +1729,7 @@ export class SessionAdvisors {
 			const advisorRef: ActiveAdvisor = {
 				name: advisorName,
 				slug,
+				marks,
 				agent: advisorAgent,
 				runtime,
 				adviseTool,
@@ -1756,8 +1788,39 @@ export class SessionAdvisors {
 		if (this.#host.agent.hasQueuedMessages() || this.#host.hasPendingNextTurnMessages()) return false;
 		const messages = this.#host.agent.state.messages;
 		let tail = messages.length - 1;
-		while (tail >= 0 && isAdvisorCard(messages[tail])) tail--;
+		while (tail >= 0 && isAdvisorOutput(messages[tail])) tail--;
 		return isTerminalTextAssistantAnswer(messages[tail]);
+	}
+
+	/**
+	 * Record one note from a `mode: mark` advisor for the user. A mark never
+	 * steers, triggers a turn or enters the primary's context
+	 * (`convertToLlm` drops {@link ADVISOR_MARK_MESSAGE_TYPE}); it only needs a
+	 * safe moment to be appended. While the primary loop runs a non-final turn,
+	 * marks wait for the terminal boundary (`onPrimaryTurnEnd`); during that
+	 * boundary window they merge into one card when it closes; otherwise
+	 * (idle, or unwinding a finished run) they are recorded now.
+	 */
+	#routeMark(advisor: ActiveAdvisor, note: string, severity?: AdvisorSeverity, turn?: number): void {
+		this.#pendingMarks.push({ note, severity, advisor: advisor.name, turn });
+		if (this.#advisorTerminalBoundaryOpen) return;
+		if (this.#host.agent.state.isStreaming && !this.#terminalUnwindActive) return;
+		this.#flushMarks();
+	}
+
+	#flushMarks(): void {
+		if (this.#pendingMarks.length === 0) return;
+		const notes = this.#pendingMarks;
+		this.#pendingMarks = [];
+		this.#host.preserveAdvisorCard({
+			role: "custom",
+			customType: ADVISOR_MARK_MESSAGE_TYPE,
+			content: formatAdvisorBatchContent(notes),
+			display: true,
+			attribution: "agent",
+			details: { notes } satisfies AdvisorMessageDetails,
+			timestamp: Date.now(),
+		});
 	}
 
 	/**
@@ -2742,6 +2805,18 @@ export class SessionAdvisors {
 	/** Clear terminal-unwind delivery when a new primary run starts. */
 	onPrimaryAgentStart(): void {
 		this.#terminalUnwindActive = false;
+	}
+
+	/**
+	 * Record marks still held when the session settles. A run that ends by
+	 * abort or error never reaches the terminal boundary that normally flushes
+	 * them (both the advise tool's in-progress deferrals and the mark buffer),
+	 * and they must not wait for the next run's boundary.
+	 */
+	flushPendingMarks(): void {
+		if (this.#host.isDisposed() || this.#host.agent.state.isStreaming) return;
+		for (const advisor of this.#advisors) if (advisor.marks) advisor.adviseTool.flushDeferredNotes();
+		this.#flushMarks();
 	}
 
 	/** Restore normal advisor routing when the primary starts or continues work. */
