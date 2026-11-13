@@ -161,9 +161,11 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 		);
 		// Both render inputs are booleans; pack them so repeat reads skip the template render.
 		const key = (eagerDelegation ? 1 : 0) | (scoutAvailable ? 2 : 0);
-		if (key !== this.#descriptionKey) {
+		const source = prompt.overridden(astGrepDescription);
+		if (key !== this.#descriptionKey || source !== this.#descriptionSource) {
 			this.#description = prompt.render(astGrepDescription, { eagerDelegation, scoutAvailable });
 			this.#descriptionKey = key;
+			this.#descriptionSource = source;
 		}
 		return this.#description;
 	}
@@ -195,6 +197,8 @@ export class AstGrepTool implements AgentTool<typeof astGrepSchema, AstGrepToolD
 	readonly loadMode = "discoverable";
 	#descriptionKey = -1;
 	#description = "";
+	// Template text the cached description was rendered from: a session's model can select another override.
+	#descriptionSource = "";
 
 	constructor(private readonly session: ToolSession) {}
 

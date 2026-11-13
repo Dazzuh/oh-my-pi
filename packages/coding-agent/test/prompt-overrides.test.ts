@@ -186,11 +186,15 @@ describe("prompt overrides", () => {
 		const dir = makeAgentDir({
 			"models/claude-opus/system/project-prompt.md": "<project-context>\nOpus footer\n</project-context>\n",
 			"models/claude-opus/tools/read.md": "Opus read.",
+			// Tool descriptions rendered once per tool (`wait`) or cached (`grep`) must follow the session's model too.
+			"models/claude-opus/tools/wait.md": "Opus wait.",
+			"models/claude-opus/tools/grep.md": "Opus grep.",
 		});
 		modelRegistry.authStorage.keys.setRuntime("anthropic", "test-key");
-		const { session: opusSession } = await createAgentSession({ ...sessionOptions(dir), model: opus });
+		const toolNames = ["read", "wait", "grep"];
+		const { session: opusSession } = await createAgentSession({ ...sessionOptions(dir), toolNames, model: opus });
 		// A second session in the same process, as an in-process subagent on another model runs.
-		const { session: haikuSession } = await createAgentSession({ ...sessionOptions(dir), model: haiku });
+		const { session: haikuSession } = await createAgentSession({ ...sessionOptions(dir), toolNames, model: haiku });
 		const capture = (session: AgentSession): Context[] => {
 			const requests: Context[] = [];
 			session.agent.streamFn = (_model, context) => {
@@ -203,8 +207,8 @@ describe("prompt overrides", () => {
 			};
 			return requests;
 		};
-		const readDescription = (request: Context | undefined) =>
-			request?.tools?.find(tool => tool.name === "read")?.description ?? "";
+		const descriptions = (request: Context | undefined) =>
+			Object.fromEntries((request?.tools ?? []).map(tool => [tool.name, tool.description]));
 		try {
 			const opusRequests = capture(opusSession);
 			const haikuRequests = capture(haikuSession);
@@ -213,18 +217,22 @@ describe("prompt overrides", () => {
 
 			const [first, second] = opusRequests;
 			expect(String(first?.systemPrompt)).toContain("Opus footer");
-			expect(readDescription(first)).toContain("Opus read.");
+			expect(descriptions(first)).toMatchObject({
+				read: expect.stringContaining("Opus read."),
+				wait: expect.stringContaining("Opus wait."),
+				grep: expect.stringContaining("Opus grep."),
+			});
 			expect(second?.systemPrompt).toEqual(first?.systemPrompt);
 			expect(second?.tools?.map(tool => tool.description)).toEqual(first?.tools?.map(tool => tool.description));
 
 			expect(String(haikuRequests[0]?.systemPrompt)).not.toContain("Opus footer");
 			expect(String(haikuRequests[0]?.systemPrompt)).toContain("MUST default to informed action");
-			expect(readDescription(haikuRequests[0])).not.toContain("Opus read.");
+			for (const text of Object.values(descriptions(haikuRequests[0]))) expect(text).not.toContain("Opus");
 
 			await opusSession.setModel(haiku);
 			await opusSession.prompt("three");
 			expect(String(opusRequests[2]?.systemPrompt)).not.toContain("Opus footer");
-			expect(readDescription(opusRequests[2])).toBe(readDescription(haikuRequests[0]));
+			expect(descriptions(opusRequests[2])).toEqual(descriptions(haikuRequests[0]));
 		} finally {
 			await opusSession.dispose();
 			await haikuSession.dispose();

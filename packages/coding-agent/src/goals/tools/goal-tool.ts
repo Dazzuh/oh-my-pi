@@ -65,7 +65,9 @@ export class GoalTool implements AgentTool<typeof goalSchema, GoalToolDetails> {
 	readonly approval = (args: unknown): ToolTier =>
 		args !== null && typeof args === "object" && "op" in args && args.op === "get" ? "read" : "write";
 	readonly label = "Goal";
-	readonly description = prompt.render(goalDescription);
+	get description(): string {
+		return prompt.render(goalDescription);
+	}
 	readonly parameters = goalSchema;
 	readonly strict = true;
 	readonly intent = "omit" as const;
